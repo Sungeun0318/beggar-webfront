@@ -9,6 +9,7 @@ import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
 import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
+import { RecommendationScreen } from './features/recommendation/RecommendationScreen'
 import { ActiveRoomScreen } from './features/room/ActiveRoomScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
 import { InviteRoomScreen } from './features/room/InviteRoomScreen'
@@ -27,7 +28,6 @@ const routes = [
   { path: '/community/chat', title: 'CommunityChat' },
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
   { path: '/community/write', title: 'CommunityPostWrite' },
-  { path: '/recommend', title: 'Recommendation' },
   { path: '/receipts/register', title: 'ReceiptRegister' },
   { path: '/receipts', title: 'Receipts' },
 ] satisfies PlaceholderScreenProps[] & Array<{ path: string }>
@@ -62,6 +62,7 @@ function App() {
         <Route path="/room/invite" element={<InviteRoomScreen />} />
         <Route path="/budget/input" element={<BudgetInputScreen />} />
         <Route path="/budget/result" element={<BudgetResultScreen />} />
+        <Route path="/recommend" element={<RecommendationScreen />} />
         <Route path="/room/:no/settings" element={<RoomSettingsScreen />} />
         <Route path="/room/:no/rating" element={<RoomRatingScreen />} />
         <Route path="/room/:no" element={<ActiveRoomScreen />} />
