@@ -1,15 +1,8 @@
-type KakaoAuthResponse = {
-  access_token?: string
-}
-
 type KakaoSdk = {
   isInitialized: () => boolean
   init: (appKey: string) => void
   Auth: {
-    login: (options: {
-      success: (auth: KakaoAuthResponse) => void
-      fail: (error: unknown) => void
-    }) => void
+    authorize: (options: { redirectUri: string }) => void
   }
 }
 
@@ -50,7 +43,22 @@ function loadKakaoSdk() {
   return sdkPromise
 }
 
-export async function getKakaoAccessToken() {
+export function getKakaoRedirectUri() {
+  return `${window.location.origin}/login`
+}
+
+export function consumeKakaoCode() {
+  const params = new URLSearchParams(window.location.search)
+  const code = params.get('code')
+
+  if (code) {
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }
+
+  return code
+}
+
+export async function authorizeWithKakao() {
   const appKey = import.meta.env.VITE_KAKAO_JS_KEY
 
   if (!appKey) {
@@ -63,17 +71,7 @@ export async function getKakaoAccessToken() {
     kakao.init(appKey)
   }
 
-  return new Promise<string>((resolve, reject) => {
-    kakao.Auth.login({
-      success: (auth) => {
-        if (auth.access_token) {
-          resolve(auth.access_token)
-          return
-        }
-
-        reject(new Error('카카오 access token을 받지 못했어요.'))
-      },
-      fail: reject,
-    })
+  kakao.Auth.authorize({
+    redirectUri: getKakaoRedirectUri(),
   })
 }

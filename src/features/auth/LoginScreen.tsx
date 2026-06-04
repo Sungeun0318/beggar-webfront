@@ -1,11 +1,16 @@
 import { Lock, Mail } from 'lucide-react'
+import { useEffect } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
-import { login, loginWithKakao } from '../../lib/api/auth'
-import { getKakaoAccessToken } from '../../lib/kakao'
+import { login, loginWithKakaoCode } from '../../lib/api/auth'
+import {
+  authorizeWithKakao,
+  consumeKakaoCode,
+  getKakaoRedirectUri,
+} from '../../lib/kakao'
 import { currentUser } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -56,6 +61,24 @@ export function LoginScreen() {
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0
 
+  useEffect(() => {
+    const code = consumeKakaoCode()
+    if (!code) return
+
+    setErrorMessage('')
+    setIsKakaoSubmitting(true)
+    void loginWithKakaoCode(code, getKakaoRedirectUri())
+      .then(() => navigate('/home'))
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
+        )
+      })
+      .finally(() => setIsKakaoSubmitting(false))
+  }, [navigate])
+
   const submitLogin = async () => {
     if (!canSubmit || isSubmitting) return
 
@@ -81,9 +104,7 @@ export function LoginScreen() {
     setErrorMessage('')
     setIsKakaoSubmitting(true)
     try {
-      const kakaoAccessToken = await getKakaoAccessToken()
-      await loginWithKakao(kakaoAccessToken)
-      navigate('/home')
+      await authorizeWithKakao()
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -91,7 +112,9 @@ export function LoginScreen() {
           : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
       )
     } finally {
-      setIsKakaoSubmitting(false)
+      if (!window.location.search.includes('code=')) {
+        setIsKakaoSubmitting(false)
+      }
     }
   }
 

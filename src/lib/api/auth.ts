@@ -62,14 +62,18 @@ export async function signup(request: SignupRequest): Promise<void> {
   })
 }
 
-export async function loginWithKakao(kakaoAccessToken: string): Promise<User> {
+export async function loginWithKakaoCode(
+  code: string,
+  redirectUri: string,
+): Promise<User> {
   if (MOCK.auth) {
     return currentUser
   }
 
-  // 실제 경로: POST /auth/kakao
-  const response = await client.post<LoginResponse>('/auth/kakao', {
-    kakaoAccessToken,
+  // 실제 경로: POST /auth/kakao/code
+  const response = await client.post<LoginResponse>('/auth/kakao/code', {
+    code,
+    redirectUri,
   })
   localStorage.setItem('accessToken', response.data.accessToken)
   if (response.data.refreshToken) {
