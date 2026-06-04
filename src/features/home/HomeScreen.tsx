@@ -17,14 +17,7 @@ export function HomeScreen() {
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
         <AppHeaderBrand title="거지방" showNotification />
-        <section
-          className="absolute left-pageH right-pageH overflow-y-auto"
-          style={{
-            top: spacing.contentTop,
-            bottom: 0,
-            paddingBottom: spacing.bottomSafe,
-          }}
-        >
+        <section className="px-pageH pt-2" style={{ paddingBottom: spacing.bottomSafe }}>
           <p className="text-sm font-semibold text-sub">
             친구들과 만든 거지방에서 예산과 지출을 확인해요.
           </p>

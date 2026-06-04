@@ -72,10 +72,7 @@ export function RoomSettingsScreen() {
           title="거지방 설정"
           onBack={() => navigate(`/room/${room.no}`)}
         />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <SectionTitle text="거지방 정보" />
           <div className="h-[13px]" />
           <div

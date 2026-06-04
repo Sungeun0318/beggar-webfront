@@ -20,10 +20,7 @@ export function BudgetInputScreen() {
     <PhoneFrame height={930}>
       <main className="relative min-h-[930px] bg-bg">
         <AppHeaderTitled title="예산 입력" onBack={() => navigate(-1)} />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <div
             className="w-full p-5"
             style={softBox({ color: colors.accentBg, radius: radii.card })}

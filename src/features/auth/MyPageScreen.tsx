@@ -52,13 +52,7 @@ export function MyPageScreen() {
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
         <AppHeaderBrand title="마이페이지" showNotification={false} />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{
-            top: spacing.contentTop,
-            paddingBottom: spacing.bottomSafe,
-          }}
-        >
+        <section className="px-pageH pt-2" style={{ paddingBottom: spacing.bottomSafe }}>
           <div
             className="flex h-[98px] items-center rounded-card border bg-accentBg p-3"
             style={{ borderColor: colors.canvas, borderWidth: 0.65 }}

@@ -25,10 +25,7 @@ export function ReceiptsScreen() {
           onBack={() => navigate(-1)}
           showNotification
         />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <div className="flex items-center">
             <h1
               className="text-xl font-semibold text-text"

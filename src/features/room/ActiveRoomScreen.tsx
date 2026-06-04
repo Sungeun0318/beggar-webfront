@@ -17,7 +17,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { SummaryRow } from '../../components/SummaryRow'
 import { money } from '../../lib/format'
 import { budgetResult, receipts, room } from '../../mocks'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 
 const tags = ['한식', '양식', '일식', '중식', '기타 요식업']
@@ -26,7 +26,7 @@ function RoomReceiptBar() {
   const navigate = useNavigate()
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 h-[92px] border-t border-border bg-white/95">
+    <div className="fixed inset-x-0 bottom-0 z-30 mx-auto h-[92px] w-full max-w-[430px] border-t border-border bg-white/95">
       <div className="flex h-full items-start justify-around">
         <button
           type="button"
@@ -61,39 +61,31 @@ export function ActiveRoomScreen() {
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
-        <header
-          className="absolute left-pageH right-pageH z-10 grid items-center"
-          style={{ top: spacing.headerTop - 16, height: spacing.headerHeight }}
-        >
-          <button
-            type="button"
-            onClick={() => navigate('/home')}
-            className="absolute left-0 top-2 grid h-10 w-10 place-items-center"
-          >
-            <ChevronLeft aria-hidden="true" size={30} color={colors.text} />
-          </button>
-          <h1
-            className="text-center text-[21px] font-black text-text"
-            style={{ letterSpacing: -0.7 }}
-          >
-            거지방{roomNo}
-          </h1>
-          <button
-            type="button"
-            onClick={() => navigate(`/room/${room.no}/settings`)}
-            className="absolute right-0 top-3 grid h-8 w-8 place-items-center"
-          >
-            <Settings aria-hidden="true" size={24} color={colors.text} />
-          </button>
+        <header className="sticky top-0 z-20 bg-bg px-pageH pt-4 pb-2">
+          <div className="relative grid h-14 items-center">
+            <button
+              type="button"
+              onClick={() => navigate('/home')}
+              className="absolute left-0 grid h-10 w-10 place-items-center"
+            >
+              <ChevronLeft aria-hidden="true" size={30} color={colors.text} />
+            </button>
+            <h1
+              className="text-center text-[21px] font-black text-text"
+              style={{ letterSpacing: -0.7 }}
+            >
+              거지방{roomNo}
+            </h1>
+            <button
+              type="button"
+              onClick={() => navigate(`/room/${room.no}/settings`)}
+              className="absolute right-0 grid h-8 w-8 place-items-center"
+            >
+              <Settings aria-hidden="true" size={24} color={colors.text} />
+            </button>
+          </div>
         </header>
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-5"
-          style={{
-            top: spacing.contentTop - 7,
-            paddingTop: 8,
-            paddingBottom: 124,
-          }}
-        >
+        <section className="px-5 pt-2" style={{ paddingBottom: 124 }}>
           <SummaryRow
             Icon={WalletCards}
             label="오늘의 예산"

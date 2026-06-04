@@ -27,10 +27,7 @@ export function RoomRatingScreen() {
           title="거지방 평가"
           onBack={() => navigate(`/room/${room.no}`)}
         />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop, paddingBottom: spacing.bottomSafe }}
-        >
+        <section className="px-pageH pt-2" style={{ paddingBottom: spacing.bottomSafe }}>
           <h1 style={textStyles.sectionHeading}>거지방1 평가</h1>
           <p className="mt-1.5 text-[13px] font-semibold text-sub">
             이 방 멤버가 함께 만든 공동 절약 점수예요.

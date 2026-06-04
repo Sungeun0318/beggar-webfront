@@ -20,7 +20,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 
 const tags: Array<{ label: string; Icon: LucideIcon; full?: boolean }> = [
@@ -48,10 +48,7 @@ export function CreateRoomScreen() {
           title="새 거지방 만들기"
           onBack={() => navigate(-1)}
         />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop, paddingBottom: 132 }}
-        >
+        <section className="px-pageH pt-2" style={{ paddingBottom: 132 }}>
           <SectionTitle text="거지방 이름" />
           <div className="h-[13px]" />
           <input

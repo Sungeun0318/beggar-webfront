@@ -18,7 +18,7 @@ export function SplashScreen() {
 
   return (
     <PhoneFrame height={930}>
-      <main className="relative flex min-h-[930px] flex-col bg-bg">
+      <main className="relative flex min-h-[100dvh] flex-col bg-bg">
         <section className="flex flex-1 flex-col items-center justify-center">
           <img
             src="/assets/images/figma/logo.png"

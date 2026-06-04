@@ -94,10 +94,7 @@ export function SignupScreen() {
     <PhoneFrame height={930}>
       <main className="relative min-h-[930px] bg-bg">
         <AppHeaderTitled title="회원가입" onBack={() => navigate(-1)} />
-        <section
-          className="absolute bottom-0 left-pageH right-pageH overflow-y-auto"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <div style={{ paddingBottom: spacing.bottomSafe }}>
             <h1
               className="text-2xl font-black text-text"

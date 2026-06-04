@@ -68,13 +68,7 @@ export function RankingScreen() {
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
         <AppHeaderBrand title="거지 랭킹" showNotification={false} />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{
-            top: spacing.contentTop,
-            paddingBottom: spacing.bottomSafe,
-          }}
-        >
+        <section className="px-pageH pt-2" style={{ paddingBottom: spacing.bottomSafe }}>
           <div className="flex flex-col gap-2.5">
             {participants.map((participant) => (
               <ParticipantRow key={participant.rank} {...participant} />

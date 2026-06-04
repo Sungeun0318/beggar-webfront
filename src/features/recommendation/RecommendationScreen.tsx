@@ -62,10 +62,7 @@ export function RecommendationScreen() {
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
         <AppHeaderTitled title="예산에 맞는 추천" onBack={() => navigate(-1)} />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <button
             type="button"
             className="w-full text-left"
@@ -163,8 +160,8 @@ export function RecommendationScreen() {
         </section>
 
         {selectedPlace && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-8">
-            <div className="w-full p-5" style={softBox({ radius: radii.card })}>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/35 px-8">
+            <div className="w-full max-w-[360px] p-5" style={softBox({ radius: radii.card })}>
               <h2 className="text-center text-lg font-extrabold text-text">
                 카카오맵으로 이동할까요?
               </h2>
@@ -257,7 +254,7 @@ function LocationSheet({
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center px-pageH">
+    <div className="fixed inset-0 z-40 flex items-center justify-center px-6">
       {/* 딤 오버레이 */}
       <button
         type="button"
@@ -266,7 +263,7 @@ function LocationSheet({
         className="absolute inset-0 bg-black/35"
       />
       {/* 중앙 팝업 */}
-      <div className="relative w-full rounded-card bg-white px-5 pb-6 pt-[22px]">
+      <div className="relative w-full max-w-[390px] rounded-card bg-white px-5 pb-6 pt-[22px]">
         <div className="flex items-center">
           <p className="flex-1 text-lg font-extrabold text-text">추천 지역</p>
           <button type="button" aria-label="닫기" onClick={onClose} className="text-sub">

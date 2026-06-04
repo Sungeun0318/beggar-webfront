@@ -38,14 +38,8 @@ function HeaderIconButton({ icon, size, onClick }: HeaderIconButtonProps) {
 
 function HeaderShell({ children }: { children: React.ReactNode }) {
   return (
-    <header
-      className="absolute left-pageH right-pageH z-10"
-      style={{
-        top: spacing.headerTop - 16,
-        height: spacing.headerHeight,
-      }}
-    >
-      {children}
+    <header className="sticky top-0 z-20 bg-bg px-pageH pt-4 pb-2">
+      <div style={{ height: spacing.headerHeight }}>{children}</div>
     </header>
   )
 }

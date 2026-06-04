@@ -17,10 +17,7 @@ export function BudgetResultScreen() {
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
         <AppHeaderTitled title="예산 결정 완료" onBack={() => navigate(-1)} />
-        <section
-          className="absolute inset-x-0 bottom-0 overflow-y-auto px-pageH"
-          style={{ top: spacing.contentTop }}
-        >
+        <section className="px-pageH pt-2">
           <div className="relative flex h-[145px] items-center justify-center">
             <Star
               aria-hidden="true"

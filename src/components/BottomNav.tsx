@@ -17,7 +17,7 @@ export function BottomNav() {
   const location = useLocation()
 
   return (
-    <nav className="absolute inset-x-0 bottom-0 z-10 h-[92px] border-t border-border bg-white/95">
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto h-[92px] w-full max-w-[430px] border-t border-border bg-white/95">
       <div className="flex h-full items-start justify-around">
         {tabs.map(({ label, path, Icon }) => {
           const isActive = location.pathname === path
