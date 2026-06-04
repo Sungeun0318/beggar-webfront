@@ -35,10 +35,17 @@ function placeAmount(place: RecommendedPlace) {
     : `${money(place.expectedPrice)}원`
 }
 
+const nearbyRadius = 5000
+
 export function RecommendationScreen() {
   const navigate = useNavigate()
   const [selectedTag, setSelectedTag] = useState(room.tags[0] ?? '한식')
   const [selectedRegion, setSelectedRegion] = useState(room.location)
+  const [selectedRegionQuery, setSelectedRegionQuery] = useState<string | null>(
+    null,
+  )
+  const [selectedLat, setSelectedLat] = useState<number | null>(null)
+  const [selectedLng, setSelectedLng] = useState<number | null>(null)
   const [result, setResult] = useState<RecommendationResult | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<RecommendedPlace | null>(
     null,
@@ -48,9 +55,14 @@ export function RecommendationScreen() {
   useEffect(() => {
     void getRecommendation(room.no, {
       tag: selectedTag,
-      region: selectedRegion,
+      region:
+        selectedRegionQuery ??
+        (selectedLat === null ? selectedRegion : undefined),
+      lat: selectedLat ?? undefined,
+      lng: selectedLng ?? undefined,
+      radius: selectedLat === null ? undefined : nearbyRadius,
     }).then(setResult)
-  }, [selectedRegion, selectedTag])
+  }, [selectedLat, selectedLng, selectedRegion, selectedRegionQuery, selectedTag])
 
   const recommendationBudget = result?.recommendationBudget
   const budgetLabel =
@@ -198,20 +210,39 @@ export function RecommendationScreen() {
             onCurrentLocation={() => {
               setSheetOpen(false)
               setSelectedRegion('현재 위치')
+              setSelectedRegionQuery(null)
+              setSelectedLat(null)
+              setSelectedLng(null)
             }}
             onSelect={(loc) => {
               setSheetOpen(false)
               setSelectedRegion(loc.name || loc.address)
+              setSelectedRegionQuery(regionQuery(loc.address))
+              setSelectedLat(loc.lat)
+              setSelectedLng(loc.lng)
             }}
             onManualRegion={(region) => {
               setSheetOpen(false)
               setSelectedRegion(region.trim())
+              setSelectedRegionQuery(region.trim())
+              setSelectedLat(null)
+              setSelectedLng(null)
             }}
           />
         )}
       </main>
     </PhoneFrame>
   )
+}
+
+function regionQuery(address: string) {
+  const parts = address.trim().split(/\s+/).filter(Boolean)
+
+  if (parts.length >= 3) {
+    return parts.slice(0, 3).join(' ')
+  }
+
+  return address.trim()
 }
 
 type LocationSheetProps = {
