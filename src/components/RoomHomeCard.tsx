@@ -1,4 +1,5 @@
 import { radii } from '../theme/tokens'
+import { money } from '../lib/format'
 import { softBox } from './ui/softBox'
 
 type RoomHomeCardProps = {
@@ -9,10 +10,6 @@ type RoomHomeCardProps = {
   memberCount: number
   status: string
   onTap: () => void
-}
-
-function money(value: number) {
-  return Math.trunc(value).toLocaleString('en-US')
 }
 
 export function RoomHomeCard({
