@@ -64,7 +64,12 @@ async function request<T>(
     : await response.text()
 
   if (!response.ok) {
-    // TODO(STEP 9): 401이면 토큰 정리/로그인 리다이렉트 처리.
+    if (response.status === 401) {
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+    }
+
+    // 401 리다이렉트는 인증 화면 연동 단계에서 처리한다.
     const message =
       typeof data === 'object' && data !== null && 'message' in data
         ? String((data as { message?: unknown }).message)
