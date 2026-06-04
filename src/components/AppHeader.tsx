@@ -21,6 +21,8 @@ type AppHeaderTitledProps = {
   onBack: () => void
 }
 
+const defaultLogoSrc = '/assets/images/figma/logo.png'
+
 function HeaderIconButton({ icon, size, onClick }: HeaderIconButtonProps) {
   const Icon = icon === 'back' ? ChevronLeft : Bell
 
@@ -46,7 +48,7 @@ function HeaderShell({ children }: { children: React.ReactNode }) {
 
 export function AppHeaderBrand({
   title = '거지 우정 수호대',
-  logoSrc,
+  logoSrc = defaultLogoSrc,
   onBack,
   showNotification = true,
   onNotification,
@@ -60,15 +62,11 @@ export function AppHeaderBrand({
             <div className="w-1.5" />
           </>
         )}
-        {logoSrc ? (
-          <img
-            src={logoSrc}
-            alt=""
-            className="h-11 w-11 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-11 w-11 rounded-full bg-gold-gradient" />
-        )}
+        <img
+          src={logoSrc}
+          alt=""
+          className="h-11 w-11 rounded-full object-cover"
+        />
         <div className="w-2.5" />
         <h1
           className="min-w-0 flex-1 truncate"
