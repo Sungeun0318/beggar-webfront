@@ -46,6 +46,37 @@ const mockPosts: RoomFreePost[] = [
   },
 ]
 
+const mockChats: RoomFreeChat[] = [
+  {
+    id: 1,
+    sender: '절약왕',
+    message: '오늘 편의점 도시락 할인 정보 본 사람?',
+    createdAt: '오후 2:13',
+    isMine: false,
+  },
+  {
+    id: 2,
+    sender: '거지판다',
+    message: 'CU 앱에서 쿠폰 같이 쓰면 6천원대로 가능하더라.',
+    createdAt: '오후 2:14',
+    isMine: true,
+  },
+  {
+    id: 3,
+    sender: '소금커피',
+    message: '명학역 쪽 착한가격 업소도 괜찮았어.',
+    createdAt: '오후 2:18',
+    isMine: false,
+  },
+  {
+    id: 4,
+    sender: '한푼두푼',
+    message: '게시판에 링크 올려줄게.',
+    createdAt: '오후 2:20',
+    isMine: false,
+  },
+]
+
 export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
   if (USE_MOCK) {
     return keyword
@@ -112,7 +143,7 @@ export async function createComment(
 
 export async function getChats(): Promise<RoomFreeChat[]> {
   if (USE_MOCK) {
-    return []
+    return mockChats
   }
 
   // 실제 경로: GET /api/freerooms/chats

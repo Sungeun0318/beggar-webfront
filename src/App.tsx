@@ -4,8 +4,9 @@ import { LoginScreen } from './features/auth/LoginScreen'
 import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
 import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
-import { CommunityScreen } from './features/community/CommunityScreen'
 import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
+import { CommunityChatScreen } from './features/community/CommunityChatScreen'
+import { CommunityScreen } from './features/community/CommunityScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
 import { RecommendationScreen } from './features/recommendation/RecommendationScreen'
@@ -29,6 +30,7 @@ function App() {
         <Route path="/home" element={<HomeScreen />} />
         <Route path="/ranking" element={<RankingScreen />} />
         <Route path="/community" element={<CommunityScreen />} />
+        <Route path="/community/chat" element={<CommunityChatScreen />} />
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite" element={<InviteRoomScreen />} />
         <Route path="/budget/input" element={<BudgetInputScreen />} />
