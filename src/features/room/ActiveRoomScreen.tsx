@@ -38,7 +38,7 @@ function RoomReceiptBar() {
         </button>
         <button
           type="button"
-          onClick={() => navigate('/receipts/register')}
+          onClick={() => navigate('/receipts/split')}
           className="flex w-[116px] flex-col items-center pt-3 text-text"
         >
           <Scissors aria-hidden="true" size={26} />

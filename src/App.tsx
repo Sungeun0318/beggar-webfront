@@ -13,6 +13,7 @@ import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
 import { RecommendationScreen } from './features/recommendation/RecommendationScreen'
 import { ReceiptRegisterScreen } from './features/receipts/ReceiptRegisterScreen'
+import { ReceiptSplitScreen } from './features/receipts/ReceiptSplitScreen'
 import { ReceiptsScreen } from './features/receipts/ReceiptsScreen'
 import { ActiveRoomScreen } from './features/room/ActiveRoomScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
@@ -47,6 +48,7 @@ function App() {
         <Route path="/budget/result" element={<BudgetResultScreen />} />
         <Route path="/recommend" element={<RecommendationScreen />} />
         <Route path="/receipts/register" element={<ReceiptRegisterScreen />} />
+        <Route path="/receipts/split" element={<ReceiptSplitScreen />} />
         <Route path="/receipts" element={<ReceiptsScreen />} />
         <Route path="/room/:no/settings" element={<RoomSettingsScreen />} />
         <Route path="/room/:no/rating" element={<RoomRatingScreen />} />
