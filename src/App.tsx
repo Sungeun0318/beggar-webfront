@@ -9,6 +9,7 @@ import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
 import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
+import { ActiveRoomScreen } from './features/room/ActiveRoomScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
 import { InviteRoomScreen } from './features/room/InviteRoomScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -24,7 +25,6 @@ const routes = [
   { path: '/community/chat', title: 'CommunityChat' },
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
   { path: '/community/write', title: 'CommunityPostWrite' },
-  { path: '/room/:no', title: 'ActiveRoom' },
   { path: '/room/:no/settings', title: 'RoomSettings' },
   { path: '/room/:no/rating', title: 'RoomRating' },
   { path: '/recommend', title: 'Recommendation' },
@@ -62,6 +62,7 @@ function App() {
         <Route path="/room/invite" element={<InviteRoomScreen />} />
         <Route path="/budget/input" element={<BudgetInputScreen />} />
         <Route path="/budget/result" element={<BudgetResultScreen />} />
+        <Route path="/room/:no" element={<ActiveRoomScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
