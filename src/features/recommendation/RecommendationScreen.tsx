@@ -257,7 +257,7 @@ function LocationSheet({
   }
 
   return (
-    <div className="absolute inset-0 z-30">
+    <div className="absolute inset-0 z-30 flex items-center justify-center px-pageH">
       {/* 딤 오버레이 */}
       <button
         type="button"
@@ -265,8 +265,8 @@ function LocationSheet({
         onClick={onClose}
         className="absolute inset-0 bg-black/35"
       />
-      {/* 바텀시트 */}
-      <div className="absolute inset-x-0 bottom-0 rounded-t-card bg-white px-pageH pb-6 pt-[22px]">
+      {/* 중앙 팝업 */}
+      <div className="relative w-full rounded-card bg-white px-5 pb-6 pt-[22px]">
         <div className="flex items-center">
           <p className="flex-1 text-lg font-extrabold text-text">추천 지역</p>
           <button type="button" aria-label="닫기" onClick={onClose} className="text-sub">
