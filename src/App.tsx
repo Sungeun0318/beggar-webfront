@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
 import { PhoneFrame } from './components/PhoneFrame'
 import { LoginScreen } from './features/auth/LoginScreen'
+import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { spacing, textStyles } from './theme/tokens'
@@ -19,7 +20,6 @@ const routes = [
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
   { path: '/community/write', title: 'CommunityPostWrite' },
   { path: '/ranking', title: 'Ranking', showBottomNav: true },
-  { path: '/mypage', title: 'MyPage', showBottomNav: true },
   { path: '/room/create', title: 'CreateRoom' },
   { path: '/room/invite', title: 'InviteRoom' },
   { path: '/room/:no', title: 'ActiveRoom' },
@@ -55,6 +55,7 @@ function App() {
         <Route path="/" element={<SplashScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
+        <Route path="/mypage" element={<MyPageScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
