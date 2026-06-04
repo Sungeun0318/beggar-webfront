@@ -1,5 +1,6 @@
 import type {
   RoomFreeChat,
+  RoomFreeComment,
   RoomFreePost,
   RoomFreePostDetail,
 } from '../../types'
@@ -77,6 +78,27 @@ const mockChats: RoomFreeChat[] = [
   },
 ]
 
+const mockComments: RoomFreeComment[] = [
+  {
+    id: 1,
+    author: '소금커피',
+    content: '역삼 쪽 착한가격 업소 하나 있는데 링크 찾아볼게.',
+    createdAt: '방금 전',
+  },
+  {
+    id: 2,
+    author: '거지판다',
+    content: '나는 김밥집 + 카페 쿠폰 조합 추천.',
+    createdAt: '3분 전',
+  },
+  {
+    id: 3,
+    author: '절약왕',
+    content: '점심이면 백반집이 제일 안정적이긴 해.',
+    createdAt: '7분 전',
+  },
+]
+
 export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
   if (USE_MOCK) {
     return keyword
@@ -96,7 +118,9 @@ export async function getPostDetail(
   postId: number,
 ): Promise<RoomFreePostDetail> {
   if (USE_MOCK) {
-    return { ...mockPosts[0], id: postId, comments: [] }
+    const post = mockPosts.find(({ id }) => id === postId) ?? mockPosts[0]
+
+    return { ...post, comments: mockComments }
   }
 
   // 실제 경로: GET /api/freerooms/posts/{id}
