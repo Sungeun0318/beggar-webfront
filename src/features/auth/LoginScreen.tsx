@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
-import { login } from '../../lib/api/auth'
+import { login, loginWithKakao } from '../../lib/api/auth'
+import { getKakaoAccessToken } from '../../lib/kakao'
 import { currentUser } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -51,6 +52,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isKakaoSubmitting, setIsKakaoSubmitting] = useState(false)
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0
 
@@ -70,6 +72,26 @@ export function LoginScreen() {
       )
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const submitKakaoLogin = async () => {
+    if (isKakaoSubmitting) return
+
+    setErrorMessage('')
+    setIsKakaoSubmitting(true)
+    try {
+      const kakaoAccessToken = await getKakaoAccessToken()
+      await loginWithKakao(kakaoAccessToken)
+      navigate('/home')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsKakaoSubmitting(false)
     }
   }
 
@@ -130,12 +152,11 @@ export function LoginScreen() {
         <section className="absolute bottom-6 left-pageH right-pageH">
           <button
             type="button"
-            onClick={() =>
-              setErrorMessage('카카오 로그인은 JavaScript SDK 연결 후 사용할 수 있어요.')
-            }
-            className="flex h-14 w-full items-center justify-center rounded-card bg-kakaoYellow text-base font-bold text-text"
+            onClick={submitKakaoLogin}
+            disabled={isKakaoSubmitting}
+            className="flex h-14 w-full items-center justify-center rounded-card bg-kakaoYellow text-base font-bold text-text disabled:cursor-default disabled:opacity-70"
           >
-            카카오로 시작하기
+            {isKakaoSubmitting ? '카카오 로그인 중' : '카카오로 시작하기'}
           </button>
           <button
             type="button"

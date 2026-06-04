@@ -62,7 +62,23 @@ export async function signup(request: SignupRequest): Promise<void> {
   })
 }
 
-export async function loginWithKakao(): Promise<User> {
-  // TODO: POST /auth/kakao 는 백엔드 연동 단계에서 구현.
-  return currentUser
+export async function loginWithKakao(kakaoAccessToken: string): Promise<User> {
+  if (MOCK.auth) {
+    return currentUser
+  }
+
+  // 실제 경로: POST /auth/kakao
+  const response = await client.post<LoginResponse>('/auth/kakao', {
+    kakaoAccessToken,
+  })
+  localStorage.setItem('accessToken', response.data.accessToken)
+  if (response.data.refreshToken) {
+    localStorage.setItem('refreshToken', response.data.refreshToken)
+  }
+
+  return {
+    no: response.data.userNo,
+    name: response.data.userName,
+    email: `user-${response.data.userNo}@kakao.local`,
+  }
 }
