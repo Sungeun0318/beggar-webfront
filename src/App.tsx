@@ -1,11 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
-import { BottomNav } from './components/BottomNav'
-import { PhoneFrame } from './components/PhoneFrame'
 import { LoginScreen } from './features/auth/LoginScreen'
 import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
 import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
+import { CommunityScreen } from './features/community/CommunityScreen'
 import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
@@ -18,35 +17,6 @@ import { InviteRoomScreen } from './features/room/InviteRoomScreen'
 import { RoomRatingScreen } from './features/room/RoomRatingScreen'
 import { RoomSettingsScreen } from './features/room/RoomSettingsScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
-import { spacing, textStyles } from './theme/tokens'
-
-type PlaceholderScreenProps = {
-  title: string
-  showBottomNav?: boolean
-}
-
-const routes = [
-  { path: '/community', title: 'Community', showBottomNav: true },
-  { path: '/community/chat', title: 'CommunityChat' },
-  { path: '/community/post/:id', title: 'CommunityPostDetail' },
-  { path: '/community/write', title: 'CommunityPostWrite' },
-] satisfies PlaceholderScreenProps[] & Array<{ path: string }>
-
-function PlaceholderScreen({ title, showBottomNav = false }: PlaceholderScreenProps) {
-  return (
-    <PhoneFrame>
-      <main
-        className="relative flex min-h-[852px] flex-col bg-bg px-pageH"
-        style={{ paddingBottom: showBottomNav ? spacing.bottomSafe : 0 }}
-      >
-        <section className="flex flex-1 items-center justify-center text-center">
-          <h1 style={textStyles.pageTitle}>{title}</h1>
-        </section>
-        {showBottomNav && <BottomNav />}
-      </main>
-    </PhoneFrame>
-  )
-}
 
 function App() {
   return (
@@ -58,6 +28,7 @@ function App() {
         <Route path="/mypage" element={<MyPageScreen />} />
         <Route path="/home" element={<HomeScreen />} />
         <Route path="/ranking" element={<RankingScreen />} />
+        <Route path="/community" element={<CommunityScreen />} />
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite" element={<InviteRoomScreen />} />
         <Route path="/budget/input" element={<BudgetInputScreen />} />
@@ -68,15 +39,6 @@ function App() {
         <Route path="/room/:no/settings" element={<RoomSettingsScreen />} />
         <Route path="/room/:no/rating" element={<RoomRatingScreen />} />
         <Route path="/room/:no" element={<ActiveRoomScreen />} />
-        {routes.map(({ path, title, showBottomNav }) => (
-          <Route
-            key={path}
-            path={path}
-            element={
-              <PlaceholderScreen title={title} showBottomNav={showBottomNav} />
-            }
-          />
-        ))}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

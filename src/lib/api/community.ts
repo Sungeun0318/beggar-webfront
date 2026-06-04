@@ -10,12 +10,39 @@ const now = new Date().toISOString()
 const mockPosts: RoomFreePost[] = [
   {
     id: 1,
-    title: '명학역 근처 저녁 추천해줘',
-    content: '예산 적당한 곳 찾고 있어.',
+    title: '오늘 점심 8천원 이하 맛집 공유해요',
+    content: '강남역 근처에서 가성비 괜찮았던 곳 있으면 같이 추천해봐요.',
+    author: '거지판다',
+    tag: '절약팁',
+    commentCount: 12,
+    createdAt: '방금 전',
+  },
+  {
+    id: 2,
+    title: '데이트 예산 3만원이면 어떻게 짜?',
+    content: '밥이랑 카페까지 가고 싶은데 괜찮은 루트 있으면 알려줘.',
     author: '거지판다',
     tag: '질문',
-    commentCount: 0,
-    createdAt: now,
+    commentCount: 8,
+    createdAt: '9분 전',
+  },
+  {
+    id: 3,
+    title: '이번 주말 홍대 근처 절약 모임',
+    content: '카페 대신 무료 전시 보고 산책하는 코스로 생각 중이에요.',
+    author: '소금커피',
+    tag: '같이해요',
+    commentCount: 5,
+    createdAt: '18분 전',
+  },
+  {
+    id: 4,
+    title: '쿠폰 같이 쓰면 편의점 도시락도 괜찮아요',
+    content: '멤버십 할인에 앱 쿠폰까지 겹치면 점심 예산을 꽤 줄일 수 있어요.',
+    author: '절약왕',
+    tag: '절약팁',
+    commentCount: 3,
+    createdAt: '27분 전',
   },
 ]
 
