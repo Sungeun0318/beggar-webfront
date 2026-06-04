@@ -6,6 +6,7 @@ import { LoginScreen } from './features/auth/LoginScreen'
 import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
 import { HomeScreen } from './features/home/HomeScreen'
+import { RankingScreen } from './features/home/RankingScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { spacing, textStyles } from './theme/tokens'
 
@@ -19,7 +20,6 @@ const routes = [
   { path: '/community/chat', title: 'CommunityChat' },
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
   { path: '/community/write', title: 'CommunityPostWrite' },
-  { path: '/ranking', title: 'Ranking', showBottomNav: true },
   { path: '/room/create', title: 'CreateRoom' },
   { path: '/room/invite', title: 'InviteRoom' },
   { path: '/room/:no', title: 'ActiveRoom' },
@@ -57,6 +57,7 @@ function App() {
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/mypage" element={<MyPageScreen />} />
         <Route path="/home" element={<HomeScreen />} />
+        <Route path="/ranking" element={<RankingScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
