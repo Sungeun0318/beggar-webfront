@@ -55,8 +55,8 @@ export function CreateRoomScreen() {
             value={roomName}
             onChange={(event) => setRoomName(event.target.value)}
             placeholder="예) 마라탕 참기 모임"
-            className="h-14 w-full bg-bg px-4 text-base font-semibold text-text outline-none placeholder:text-placeholder"
-            style={{ borderRadius: radii.compact }}
+            className="h-14 w-full bg-white px-5 text-base font-semibold text-text outline-none placeholder:text-placeholder"
+            style={softBox({ radius: radii.compact })}
           />
           <div className="h-6" />
           <SectionTitle text="어디서 모이나요?" />
