@@ -8,6 +8,7 @@ import { SignupScreen } from './features/auth/SignupScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
+import { InviteRoomScreen } from './features/room/InviteRoomScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { spacing, textStyles } from './theme/tokens'
 
@@ -21,7 +22,6 @@ const routes = [
   { path: '/community/chat', title: 'CommunityChat' },
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
   { path: '/community/write', title: 'CommunityPostWrite' },
-  { path: '/room/invite', title: 'InviteRoom' },
   { path: '/room/:no', title: 'ActiveRoom' },
   { path: '/room/:no/settings', title: 'RoomSettings' },
   { path: '/room/:no/rating', title: 'RoomRating' },
@@ -59,6 +59,7 @@ function App() {
         <Route path="/home" element={<HomeScreen />} />
         <Route path="/ranking" element={<RankingScreen />} />
         <Route path="/room/create" element={<CreateRoomScreen />} />
+        <Route path="/room/invite" element={<InviteRoomScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
