@@ -1,4 +1,20 @@
-# Logs
+# ===== 의존성 / 빌드 산출물 (절대 커밋 X) =====
+node_modules
+dist
+dist-ssr
+build
+.vite
+
+# ===== 환경변수 / 시크릿 (절대 커밋 X) =====
+# .env 계열은 키/시크릿이 들어가므로 모두 무시. 단 공유용 .env.example 은 추적.
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# ===== 로그 =====
 logs
 *.log
 npm-debug.log*
@@ -7,18 +23,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ===== 캐시 / 커버리지 =====
+.cache
+.eslintcache
+.stylelintcache
+coverage
+*.tsbuildinfo
+node_modules/.tmp
 
-# Editor directories and files
+# ===== 패키지 매니저 (npm 사용 — 타 매니저 lock은 혼선 방지 위해 무시) =====
+yarn.lock
+pnpm-lock.yaml
+.pnp.*
+.yarn/*
+
+# ===== 에디터 / OS =====
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.DS_Store
+Thumbs.db

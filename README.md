@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# webfront — 거지 우정 수호대 (React 웹뷰)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+기존 Flutter 프론트(`../frontend`)를 **React + TypeScript + Vite + Tailwind**로 재작성한 웹뷰용 프론트엔드.
+네이티브 앱이 아니라 웹뷰로 폰 사이즈에 띄운다 (폰 고정 + PC 중앙정렬).
 
-Currently, two official plugins are available:
+> 전환 기획 + 단계별 작업 프롬프트: [`../docs/REACT_MIGRATION_PLAN.md`](../docs/REACT_MIGRATION_PLAN.md)
+> 원본 Flutter 화면/위젯: `../frontend/lib`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 기술 스택
+- Vite + React 19 + TypeScript
+- react-router-dom v7
+- Tailwind CSS v3 (디자인 토큰은 STEP 1에서 `tailwind.config.ts`에 이식)
+- 폰트: Pretendard (index.html CDN)
+- import alias: `@/` → `src/`
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 실행
+```bash
+npm install
+cp .env.example .env   # 최초 1회, 값 채우기
+npm run dev            # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 환경변수
+`.env` 는 git에 올라가지 않는다. `.env.example` 을 복사해 채운다.
+- `VITE_API_BASE_URL` — Spring 백엔드 URL (기본 `http://127.0.0.1:8080`)
+- `VITE_KAKAO_JS_KEY` — 카카오 JS 키 (백엔드 `/auth/kakao` 활성화 후)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 진행 상태
+- [x] STEP 0 — 스캐폴딩 (이 커밋)
+- [ ] STEP 1 — 디자인 토큰 + PhoneFrame + 라우팅 셸 + 하단탭
+- [ ] STEP 2 — 공용 컴포넌트 16개
+- [ ] STEP 3 — 타입 + API 클라이언트 + mock
+- [ ] STEP 4~8 — 화면 이식
+- [ ] STEP 9 — 백엔드 실연동
