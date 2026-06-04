@@ -7,6 +7,7 @@ import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
 import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
 import { CommunityChatScreen } from './features/community/CommunityChatScreen'
 import { CommunityPostDetailScreen } from './features/community/CommunityPostDetailScreen'
+import { CommunityPostWriteScreen } from './features/community/CommunityPostWriteScreen'
 import { CommunityScreen } from './features/community/CommunityScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
@@ -35,6 +36,10 @@ function App() {
         <Route
           path="/community/post/:id"
           element={<CommunityPostDetailScreen />}
+        />
+        <Route
+          path="/community/write"
+          element={<CommunityPostWriteScreen />}
         />
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite" element={<InviteRoomScreen />} />
