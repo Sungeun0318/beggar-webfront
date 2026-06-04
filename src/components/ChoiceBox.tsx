@@ -11,7 +11,7 @@ type ChoiceBoxProps = {
 export function ChoiceBox({ Icon, label }: ChoiceBoxProps) {
   return (
     <div
-      className="flex items-center justify-center"
+      className="flex h-full w-full items-center justify-center"
       style={softBox({ radius: radii.compact })}
     >
       <Icon aria-hidden="true" size={22} color={colors.brown} />
