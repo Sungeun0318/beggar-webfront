@@ -7,7 +7,6 @@ import type {
 import { client } from './client'
 import { MOCK } from './mockMode'
 
-const now = new Date().toISOString()
 const mockPosts: RoomFreePost[] = [
   {
     id: 1,
@@ -140,23 +139,13 @@ export async function createPost(request: {
   title: string
   content: string
   tag: string
-}): Promise<RoomFreePost> {
+}): Promise<void> {
   if (MOCK.communityWrite) {
-    return {
-      id: mockPosts.length + 1,
-      author: '거지판다',
-      commentCount: 0,
-      createdAt: now,
-      ...request,
-    }
+    return
   }
 
   // 실제 경로: POST /api/freerooms/posts
-  const response = await client.post<{ data: RoomFreePost }>(
-    '/api/freerooms/posts',
-    request,
-  )
-  return response.data
+  await client.post('/api/freerooms/posts', request)
 }
 
 export async function createComment(
@@ -194,7 +183,7 @@ export async function sendChat(message: string): Promise<void> {
   }
 
   // 실제 경로: POST /api/freerooms/chats
-  await client.post('/api/freerooms/chats', message)
+  await client.post('/api/freerooms/chats', { content: message })
 }
 
 function getMockPosts(keyword?: string): RoomFreePost[] {

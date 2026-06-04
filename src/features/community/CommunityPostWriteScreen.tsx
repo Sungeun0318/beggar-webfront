@@ -17,17 +17,32 @@ export function CommunityPostWriteScreen() {
   const [content, setContent] = useState(
     '가성비 좋은 식당이나 쿠폰 조합을 공유해보세요.',
   )
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const canSubmit = title.trim().length > 0 && content.trim().length > 0
 
-  const handleSubmit = () => {
-    if (!canSubmit) return
+  const handleSubmit = async () => {
+    if (!canSubmit || isSubmitting) return
 
-    void createPost({
-      title: title.trim(),
-      content: content.trim(),
-      tag: category,
-    }).then(() => navigate('/community'))
+    setErrorMessage('')
+    setIsSubmitting(true)
+    try {
+      await createPost({
+        title: title.trim(),
+        content: content.trim(),
+        tag: category,
+      })
+      navigate('/community')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '게시글 등록에 실패했어요. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -84,6 +99,11 @@ export function CommunityPostWriteScreen() {
           <p className="mt-4 text-[12px] font-semibold leading-[1.5] text-lightSub">
             작성한 글은 커뮤니티 사용자 모두에게 보여요.
           </p>
+          {errorMessage && (
+            <p className="mt-3 text-[12px] font-semibold leading-[1.4] text-danger">
+              {errorMessage}
+            </p>
+          )}
 
           <div
             className="mt-7 rounded-card px-5 py-4"
@@ -99,9 +119,9 @@ export function CommunityPostWriteScreen() {
 
           <div className="mt-8">
             <PrimaryButton
-              label="게시하기"
+              label={isSubmitting ? '게시 중' : '게시하기'}
               onTap={handleSubmit}
-              enabled={canSubmit}
+              enabled={canSubmit && !isSubmitting}
             />
           </div>
         </section>

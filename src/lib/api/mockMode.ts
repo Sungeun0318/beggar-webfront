@@ -2,7 +2,7 @@ export const MOCK = {
   recommend: false,
   location: false,
   communityRead: false,
-  communityWrite: true,
+  communityWrite: false,
   auth: false,
   rooms: true,
   budget: true,
