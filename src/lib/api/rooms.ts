@@ -1,7 +1,7 @@
 import { members, room } from '../../mocks'
 import type { Member, Room } from '../../types'
 import { client } from './client'
-import { USE_MOCK } from './mockMode'
+import { MOCK } from './mockMode'
 
 type CreateRoomRequest = {
   name: string
@@ -18,7 +18,7 @@ type UpdateRoomSettingsRequest = Partial<{
 }>
 
 export async function getMyRooms(): Promise<Room[]> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return [room]
   }
 
@@ -27,7 +27,7 @@ export async function getMyRooms(): Promise<Room[]> {
 }
 
 export async function createRoom(request: CreateRoomRequest): Promise<Room> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return { ...room, ...request }
   }
 
@@ -36,7 +36,7 @@ export async function createRoom(request: CreateRoomRequest): Promise<Room> {
 }
 
 export async function getRoom(no: number): Promise<Room> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return room
   }
 
@@ -48,7 +48,7 @@ export async function updateRoomSettings(
   no: number,
   request: UpdateRoomSettingsRequest,
 ): Promise<Room> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return { ...room, ...request }
   }
 
@@ -57,7 +57,7 @@ export async function updateRoomSettings(
 }
 
 export async function joinRoom(code: string): Promise<Room> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return { ...room, code }
   }
 
@@ -66,7 +66,7 @@ export async function joinRoom(code: string): Promise<Room> {
 }
 
 export async function getRoomMembers(no: number): Promise<Member[]> {
-  if (USE_MOCK) {
+  if (MOCK.rooms) {
     return members
   }
 

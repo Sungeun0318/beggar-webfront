@@ -5,7 +5,7 @@ import type {
   RoomFreePostDetail,
 } from '../../types'
 import { client } from './client'
-import { USE_MOCK } from './mockMode'
+import { MOCK } from './mockMode'
 
 const now = new Date().toISOString()
 const mockPosts: RoomFreePost[] = [
@@ -100,34 +100,40 @@ const mockComments: RoomFreeComment[] = [
 ]
 
 export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
-  if (USE_MOCK) {
-    return keyword
-      ? mockPosts.filter((post) => post.title.includes(keyword))
-      : mockPosts
+  if (MOCK.communityRead) {
+    return getMockPosts(keyword)
   }
 
   // 실제 경로: GET /api/freerooms/posts
-  const response = await client.get<{ data: RoomFreePost[] }>(
-    '/api/freerooms/posts',
-    keyword ? { keyword } : undefined,
-  )
-  return response.data
+  try {
+    const response = await client.get<{ data: RoomFreePost[] }>(
+      '/api/freerooms/posts',
+      keyword ? { keyword } : undefined,
+    )
+    return response.data
+  } catch (error) {
+    console.warn('커뮤니티 게시글 API 실패 - mock 대체', error)
+    return getMockPosts(keyword)
+  }
 }
 
 export async function getPostDetail(
   postId: number,
 ): Promise<RoomFreePostDetail> {
-  if (USE_MOCK) {
-    const post = mockPosts.find(({ id }) => id === postId) ?? mockPosts[0]
-
-    return { ...post, comments: mockComments }
+  if (MOCK.communityRead) {
+    return getMockPostDetail(postId)
   }
 
   // 실제 경로: GET /api/freerooms/posts/{id}
-  const response = await client.get<{ data: RoomFreePostDetail }>(
-    `/api/freerooms/posts/${postId}`,
-  )
-  return response.data
+  try {
+    const response = await client.get<{ data: RoomFreePostDetail }>(
+      `/api/freerooms/posts/${postId}`,
+    )
+    return response.data
+  } catch (error) {
+    console.warn('커뮤니티 게시글 상세 API 실패 - mock 대체', error)
+    return getMockPostDetail(postId)
+  }
 }
 
 export async function createPost(request: {
@@ -135,7 +141,7 @@ export async function createPost(request: {
   content: string
   tag: string
 }): Promise<RoomFreePost> {
-  if (USE_MOCK) {
+  if (MOCK.communityWrite) {
     return {
       id: mockPosts.length + 1,
       author: '거지판다',
@@ -157,7 +163,7 @@ export async function createComment(
   postId: number,
   content: string,
 ): Promise<void> {
-  if (USE_MOCK) {
+  if (MOCK.communityWrite) {
     return
   }
 
@@ -166,22 +172,39 @@ export async function createComment(
 }
 
 export async function getChats(): Promise<RoomFreeChat[]> {
-  if (USE_MOCK) {
+  if (MOCK.communityRead) {
     return mockChats
   }
 
   // 실제 경로: GET /api/freerooms/chats
-  const response = await client.get<{ data: RoomFreeChat[] }>(
-    '/api/freerooms/chats',
-  )
-  return response.data
+  try {
+    const response = await client.get<{ data: RoomFreeChat[] }>(
+      '/api/freerooms/chats',
+    )
+    return response.data
+  } catch (error) {
+    console.warn('커뮤니티 채팅 API 실패 - mock 대체', error)
+    return mockChats
+  }
 }
 
 export async function sendChat(message: string): Promise<void> {
-  if (USE_MOCK) {
+  if (MOCK.communityWrite) {
     return
   }
 
   // 실제 경로: POST /api/freerooms/chats
   await client.post('/api/freerooms/chats', message)
+}
+
+function getMockPosts(keyword?: string): RoomFreePost[] {
+  return keyword
+    ? mockPosts.filter((post) => post.title.includes(keyword))
+    : mockPosts
+}
+
+function getMockPostDetail(postId: number): RoomFreePostDetail {
+  const post = mockPosts.find(({ id }) => id === postId) ?? mockPosts[0]
+
+  return { ...post, comments: mockComments }
 }

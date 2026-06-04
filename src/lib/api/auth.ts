@@ -1,7 +1,7 @@
 import { currentUser } from '../../mocks'
 import type { User } from '../../types'
 import { client } from './client'
-import { USE_MOCK } from './mockMode'
+import { MOCK } from './mockMode'
 
 type LoginRequest = {
   email: string
@@ -26,7 +26,7 @@ type SignupRequest = {
 }
 
 export async function login({ email, password }: LoginRequest): Promise<User> {
-  if (USE_MOCK) {
+  if (MOCK.auth) {
     return currentUser
   }
 
@@ -48,7 +48,7 @@ export async function login({ email, password }: LoginRequest): Promise<User> {
 }
 
 export async function signup(request: SignupRequest): Promise<void> {
-  if (USE_MOCK) {
+  if (MOCK.auth) {
     return
   }
 

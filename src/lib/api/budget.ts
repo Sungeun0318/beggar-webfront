@@ -1,10 +1,10 @@
 import { budgetResult } from '../../mocks'
 import type { BudgetResult } from '../../types'
 import { client } from './client'
-import { USE_MOCK } from './mockMode'
+import { MOCK } from './mockMode'
 
 export async function submitBudget(roomNo: number, amount: number): Promise<void> {
-  if (USE_MOCK) {
+  if (MOCK.budget) {
     return
   }
 
@@ -13,7 +13,7 @@ export async function submitBudget(roomNo: number, amount: number): Promise<void
 }
 
 export async function confirmBudget(roomNo: number): Promise<void> {
-  if (USE_MOCK) {
+  if (MOCK.budget) {
     return
   }
 
@@ -22,7 +22,7 @@ export async function confirmBudget(roomNo: number): Promise<void> {
 }
 
 export async function getBudgetResult(roomNo: number): Promise<BudgetResult> {
-  if (USE_MOCK) {
+  if (MOCK.budget) {
     return budgetResult
   }
 

@@ -1,7 +1,7 @@
 import { receipts } from '../../mocks'
 import type { Receipt } from '../../types'
 import { client } from './client'
-import { USE_MOCK } from './mockMode'
+import { MOCK } from './mockMode'
 
 type ReceiptRequest = {
   title: string
@@ -13,7 +13,7 @@ export async function createReceipt(
   roomNo: number,
   request: ReceiptRequest,
 ): Promise<Receipt> {
-  if (USE_MOCK) {
+  if (MOCK.receipts) {
     return {
       date: new Date().toISOString().slice(0, 10).replaceAll('-', '.'),
       room: '명학역 데이트',
@@ -32,7 +32,7 @@ export async function updateReceipt(
   receiptId: number,
   request: ReceiptRequest,
 ): Promise<Receipt> {
-  if (USE_MOCK) {
+  if (MOCK.receipts) {
     return { ...receipts[0], ...request }
   }
 
@@ -44,7 +44,7 @@ export async function updateReceipt(
 }
 
 export async function getRoomReceipts(roomNo: number): Promise<Receipt[]> {
-  if (USE_MOCK) {
+  if (MOCK.receipts) {
     return receipts
   }
 
@@ -53,7 +53,7 @@ export async function getRoomReceipts(roomNo: number): Promise<Receipt[]> {
 }
 
 export async function getMyReceipts(): Promise<Receipt[]> {
-  if (USE_MOCK) {
+  if (MOCK.receipts) {
     return receipts
   }
 
