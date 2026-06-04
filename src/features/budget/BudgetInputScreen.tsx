@@ -15,6 +15,19 @@ import { softBox } from '../../components/ui/softBox'
 export function BudgetInputScreen() {
   const navigate = useNavigate()
   const [amount, setAmount] = useState(15000)
+  const [draftAmount, setDraftAmount] = useState(String(amount))
+  const [isEditing, setIsEditing] = useState(false)
+
+  const startEditing = () => {
+    setDraftAmount(String(amount))
+    setIsEditing(true)
+  }
+
+  const commitAmount = () => {
+    const nextAmount = Number(draftAmount.replace(/\D/g, ''))
+    setAmount(Number.isFinite(nextAmount) ? nextAmount : amount)
+    setIsEditing(false)
+  }
 
   return (
     <PhoneFrame height={930}>
@@ -33,23 +46,41 @@ export function BudgetInputScreen() {
           <div className="h-6" />
           <SectionTitle text="내 예산을 입력해주세요" />
           <div className="h-[13px]" />
-          <label
-            className="flex h-[72px] items-center px-5"
+          <div
+            onClick={() => {
+              if (!isEditing) startEditing()
+            }}
+            className="flex h-[72px] w-full items-center px-5 text-left"
             style={softBox({ radius: radii.compact })}
           >
-            <input
-              value={money(amount)}
-              onChange={(event) => {
-                const digits = event.target.value.replace(/\D/g, '')
-                setAmount(digits ? Number(digits) : 0)
-              }}
-              inputMode="numeric"
-              className="w-[120px] bg-transparent text-[28px] font-bold text-text outline-none"
-            />
+            {isEditing ? (
+              <input
+                autoFocus
+                value={draftAmount}
+                onChange={(event) => {
+                  setDraftAmount(event.target.value.replace(/\D/g, ''))
+                }}
+                onBlur={commitAmount}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') commitAmount()
+                  if (event.key === 'Escape') setIsEditing(false)
+                }}
+                inputMode="numeric"
+                className="min-w-0 flex-1 bg-transparent text-[28px] font-bold text-text outline-none"
+              />
+            ) : (
+              <span className="min-w-0 flex-1 text-[28px] font-bold text-text">
+                {money(amount)}
+              </span>
+            )}
             <span className="ml-1 text-lg font-semibold text-sub">원</span>
-            <div className="flex-1" />
-            <Edit3 aria-hidden="true" size={24} color={colors.placeholder} />
-          </label>
+            <Edit3
+              aria-hidden="true"
+              className="ml-auto shrink-0"
+              size={24}
+              color={colors.placeholder}
+            />
+          </div>
           <div className="h-7" />
           <SectionTitle text="참여자 입력 현황" />
           <div className="h-3.5" />
