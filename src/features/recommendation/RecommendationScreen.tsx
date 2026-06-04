@@ -51,6 +51,7 @@ export function RecommendationScreen() {
     null,
   )
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
 
   useEffect(() => {
     void getRecommendation(room.no, {
@@ -206,16 +207,37 @@ export function RecommendationScreen() {
         {sheetOpen && (
           <LocationSheet
             selectedRegion={selectedRegion}
+            locationError={locationError}
             onClose={() => setSheetOpen(false)}
             onCurrentLocation={() => {
-              setSheetOpen(false)
-              setSelectedRegion('현재 위치')
-              setSelectedRegionQuery(null)
-              setSelectedLat(null)
-              setSelectedLng(null)
+              setLocationError(null)
+
+              if (!navigator.geolocation) {
+                setLocationError('현재 위치를 사용할 수 없는 브라우저야.')
+                return
+              }
+
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  setSheetOpen(false)
+                  setSelectedRegion('현재 위치')
+                  setSelectedRegionQuery(null)
+                  setSelectedLat(position.coords.latitude)
+                  setSelectedLng(position.coords.longitude)
+                },
+                () => {
+                  setLocationError('현재 위치를 가져오지 못했어.')
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 60000,
+                },
+              )
             }}
             onSelect={(loc) => {
               setSheetOpen(false)
+              setLocationError(null)
               setSelectedRegion(loc.name || loc.address)
               setSelectedRegionQuery(regionQuery(loc.address))
               setSelectedLat(loc.lat)
@@ -223,6 +245,7 @@ export function RecommendationScreen() {
             }}
             onManualRegion={(region) => {
               setSheetOpen(false)
+              setLocationError(null)
               setSelectedRegion(region.trim())
               setSelectedRegionQuery(region.trim())
               setSelectedLat(null)
@@ -247,6 +270,7 @@ function regionQuery(address: string) {
 
 type LocationSheetProps = {
   selectedRegion: string
+  locationError: string | null
   onClose: () => void
   onCurrentLocation: () => void
   onSelect: (location: LocationSearchResult) => void
@@ -255,6 +279,7 @@ type LocationSheetProps = {
 
 function LocationSheet({
   selectedRegion,
+  locationError,
   onClose,
   onCurrentLocation,
   onSelect,
@@ -313,6 +338,11 @@ function LocationSheet({
           <LocateFixed size={18} />
           현재 위치 사용
         </button>
+        {locationError && (
+          <p className="mt-2 text-center text-xs font-semibold text-danger">
+            {locationError}
+          </p>
+        )}
 
         <div className="mt-3.5 flex gap-2">
           <input
