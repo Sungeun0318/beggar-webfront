@@ -1,15 +1,17 @@
 import {
   Beef,
+  ChevronRight,
   Lock,
   MapPin,
   Minus,
   Plus,
+  Search,
   Soup,
   Utensils,
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
@@ -22,6 +24,8 @@ import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
+import { searchLocations } from '../../lib/api/locations'
+import type { LocationSearchResult } from '../../types'
 
 const tags: Array<{ label: string; Icon: LucideIcon; full?: boolean }> = [
   { label: '한식', Icon: Utensils },
@@ -34,11 +38,26 @@ const tags: Array<{ label: string; Icon: LucideIcon; full?: boolean }> = [
 export function CreateRoomScreen() {
   const navigate = useNavigate()
   const [roomName, setRoomName] = useState('')
+  const [selectedLocation, setSelectedLocation] =
+    useState<LocationSearchResult | null>(null)
+  const [showLocationSearch, setShowLocationSearch] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [maxMemberCount, setMaxMemberCount] = useState(4)
 
   const changeMemberCount = (delta: number) => {
     setMaxMemberCount((current) => Math.min(Math.max(current + delta, 2), 100))
+  }
+
+  if (showLocationSearch) {
+    return (
+      <SearchAddressView
+        onBack={() => setShowLocationSearch(false)}
+        onSelect={(location) => {
+          setSelectedLocation(location)
+          setShowLocationSearch(false)
+        }}
+      />
+    )
   }
 
   return (
@@ -61,7 +80,17 @@ export function CreateRoomScreen() {
           <div className="h-6" />
           <SectionTitle text="어디서 모이나요?" />
           <div className="h-[13px]" />
-          <InputLike label="예) 강남역, 홍대입구" Icon={MapPin} />
+          <button
+            type="button"
+            onClick={() => setShowLocationSearch(true)}
+            className="block w-full text-left"
+          >
+            <InputLike
+              label={locationLabel(selectedLocation)}
+              Icon={MapPin}
+              selected={selectedLocation !== null}
+            />
+          </button>
           <div className="h-[38px]" />
           <SectionTitle text="어떤 모임인가요?" />
           <div className="h-[13px]" />
@@ -166,4 +195,161 @@ export function CreateRoomScreen() {
       </main>
     </PhoneFrame>
   )
+}
+
+function SearchAddressView({
+  onBack,
+  onSelect,
+}: {
+  onBack: () => void
+  onSelect: (location: LocationSearchResult) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<LocationSearchResult[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const trimmed = query.trim()
+
+    if (!trimmed) {
+      setResults([])
+      setIsLoading(false)
+      setErrorMessage(null)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsLoading(true)
+      setErrorMessage(null)
+
+      void searchLocations(trimmed)
+        .then((locations) => {
+          setResults(locations)
+        })
+        .catch((error) => {
+          console.warn('방 생성 지역 검색 실패', error)
+          setResults([])
+          setErrorMessage('지역 검색을 불러오지 못했어요.')
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    }, 350)
+
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const submitSearch = () => {
+    const trimmed = query.trim()
+
+    if (!trimmed || isLoading) {
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    void searchLocations(trimmed)
+      .then((locations) => {
+        setResults(locations)
+      })
+      .catch((error) => {
+        console.warn('방 생성 지역 검색 실패', error)
+        setResults([])
+        setErrorMessage('지역 검색을 불러오지 못했어요.')
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }
+
+  return (
+    <PhoneFrame height={852}>
+      <main className="min-h-[852px] bg-white">
+        <AppHeaderTitled title="내 근처 역 검색" onBack={onBack} />
+        <section className="px-4 pt-4">
+          <div className="flex h-12 items-center rounded-xl bg-bg px-4">
+            <Search aria-hidden="true" size={22} color={colors.brown} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  submitSearch()
+                }
+              }}
+              placeholder="지하철역 이름이나 장소를 입력하세요 (ex: 홍대입구)"
+              className="ml-2 min-w-0 flex-1 bg-transparent text-sm font-semibold text-text outline-none placeholder:text-placeholder"
+            />
+          </div>
+
+          <div className="pt-4">
+            {isLoading ? (
+              <div className="grid min-h-[560px] place-items-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-brown" />
+              </div>
+            ) : errorMessage ? (
+              <SearchEmptyMessage message={errorMessage} />
+            ) : results.length === 0 ? (
+              <SearchEmptyMessage
+                message={'검색 결과가 없습니다.\n궁금한 지하철역 명칭을 입력창에 쳐보세요!'}
+              />
+            ) : (
+              <ul>
+                {results.map((item, index) => (
+                  <li key={`${item.name}-${item.address}-${index}`}>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(item)}
+                      className="flex w-full items-center py-3 text-left"
+                    >
+                      <MapPin
+                        aria-hidden="true"
+                        size={24}
+                        color={colors.brown}
+                        className="shrink-0"
+                      />
+                      <div className="ml-4 min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-bold text-text">
+                          {locationLabel(item)}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-sub">
+                          {item.address}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        aria-hidden="true"
+                        size={16}
+                        color={colors.sub}
+                        className="ml-3 shrink-0"
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </main>
+    </PhoneFrame>
+  )
+}
+
+function SearchEmptyMessage({ message }: { message: string }) {
+  return (
+    <div className="grid min-h-[560px] place-items-center">
+      <p className="whitespace-pre-line text-center text-sm font-semibold leading-6 text-sub">
+        {message}
+      </p>
+    </div>
+  )
+}
+
+function locationLabel(location: LocationSearchResult | null) {
+  if (!location) {
+    return '예) 강남역, 홍대입구'
+  }
+
+  return location.name.trim() ? location.name : location.address
 }
