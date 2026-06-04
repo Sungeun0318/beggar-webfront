@@ -6,6 +6,7 @@ import { LoginScreen } from './features/auth/LoginScreen'
 import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
 import { BudgetInputScreen } from './features/budget/BudgetInputScreen'
+import { BudgetResultScreen } from './features/budget/BudgetResultScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { RankingScreen } from './features/home/RankingScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
@@ -26,7 +27,6 @@ const routes = [
   { path: '/room/:no', title: 'ActiveRoom' },
   { path: '/room/:no/settings', title: 'RoomSettings' },
   { path: '/room/:no/rating', title: 'RoomRating' },
-  { path: '/budget/result', title: 'BudgetResult' },
   { path: '/recommend', title: 'Recommendation' },
   { path: '/receipts/register', title: 'ReceiptRegister' },
   { path: '/receipts', title: 'Receipts' },
@@ -61,6 +61,7 @@ function App() {
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite" element={<InviteRoomScreen />} />
         <Route path="/budget/input" element={<BudgetInputScreen />} />
+        <Route path="/budget/result" element={<BudgetResultScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
