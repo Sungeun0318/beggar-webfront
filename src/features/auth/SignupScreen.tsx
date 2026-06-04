@@ -7,6 +7,7 @@ import { InfoCard } from '../../components/InfoCard'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
+import { signup } from '../../lib/api/auth'
 import { colors, radii, spacing } from '../../theme/tokens'
 
 type SignupFieldProps = {
@@ -89,6 +90,39 @@ export function SignupScreen() {
   const [password, setPassword] = useState('')
   const [gender, setGender] = useState('')
   const [ageRange, setAgeRange] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const canSubmit =
+    nickname.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.trim().length > 0 &&
+    ageRange.length > 0
+
+  const submitSignup = async () => {
+    if (!canSubmit || isSubmitting) return
+
+    setErrorMessage('')
+    setIsSubmitting(true)
+    try {
+      await signup({
+        nickname: nickname.trim(),
+        email: email.trim(),
+        password,
+        ageRange,
+        gender: gender && gender !== 'none' ? Number(gender) : undefined,
+      })
+      navigate('/login')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '회원가입에 실패했어요. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <PhoneFrame height={930}>
@@ -160,10 +194,16 @@ export function SignupScreen() {
               title="예산 정보는 익명으로 보호돼요"
               body={'성별과 연령대는 추천 품질 개선에만 사용하고\n개인 예산은 다른 사람에게 공개하지 않아요.'}
             />
+            {errorMessage && (
+              <p className="mt-4 text-[12px] font-semibold leading-[1.4] text-danger">
+                {errorMessage}
+              </p>
+            )}
             <div className="h-6" />
             <PrimaryButton
-              label="회원가입 완료"
-              onTap={() => navigate('/login')}
+              label={isSubmitting ? '가입 중' : '회원가입 완료'}
+              onTap={submitSignup}
+              enabled={canSubmit && !isSubmitting}
             />
           </div>
         </section>
