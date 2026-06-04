@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { BottomNav } from './components/BottomNav'
 import { PhoneFrame } from './components/PhoneFrame'
+import { SplashScreen } from './features/splash/SplashScreen'
 import { spacing, textStyles } from './theme/tokens'
 
 type PlaceholderScreenProps = {
@@ -10,7 +11,6 @@ type PlaceholderScreenProps = {
 }
 
 const routes = [
-  { path: '/', title: 'Splash' },
   { path: '/login', title: 'Login' },
   { path: '/signup', title: 'Signup' },
   { path: '/home', title: 'Home', showBottomNav: true },
@@ -52,6 +52,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<SplashScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
