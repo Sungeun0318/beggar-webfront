@@ -5,6 +5,7 @@ import { PhoneFrame } from './components/PhoneFrame'
 import { LoginScreen } from './features/auth/LoginScreen'
 import { MyPageScreen } from './features/auth/MyPageScreen'
 import { SignupScreen } from './features/auth/SignupScreen'
+import { HomeScreen } from './features/home/HomeScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { spacing, textStyles } from './theme/tokens'
 
@@ -14,7 +15,6 @@ type PlaceholderScreenProps = {
 }
 
 const routes = [
-  { path: '/home', title: 'Home', showBottomNav: true },
   { path: '/community', title: 'Community', showBottomNav: true },
   { path: '/community/chat', title: 'CommunityChat' },
   { path: '/community/post/:id', title: 'CommunityPostDetail' },
@@ -56,6 +56,7 @@ function App() {
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/mypage" element={<MyPageScreen />} />
+        <Route path="/home" element={<HomeScreen />} />
         {routes.map(({ path, title, showBottomNav }) => (
           <Route
             key={path}
