@@ -66,17 +66,18 @@ export function BudgetInputScreen() {
                   if (event.key === 'Escape') setIsEditing(false)
                 }}
                 inputMode="numeric"
-                className="min-w-0 flex-1 bg-transparent text-[28px] font-bold text-text outline-none"
+                className="w-[150px] bg-transparent text-[28px] font-bold text-text outline-none"
               />
             ) : (
-              <span className="min-w-0 flex-1 text-[28px] font-bold text-text">
+              <span className="text-[28px] font-bold text-text">
                 {money(amount)}
               </span>
             )}
             <span className="ml-1 text-lg font-semibold text-sub">원</span>
+            <div className="flex-1" />
             <Edit3
               aria-hidden="true"
-              className="ml-auto shrink-0"
+              className="shrink-0"
               size={24}
               color={colors.placeholder}
             />
