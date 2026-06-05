@@ -1,4 +1,4 @@
-import { Link, MessageCircle } from 'lucide-react'
+import { Check, Copy, Link, MessageCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -24,6 +24,7 @@ export function InviteRoomScreen() {
     maxMemberCount: 0,
   })
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', targetRoomNo)
@@ -73,6 +74,25 @@ export function InviteRoomScreen() {
     roomData.roomCode === 'loading...'
       ? '초대 링크 생성 중...'
       : `${window.location.origin}${invitePath}`
+  const canCopy = roomData.roomCode !== 'loading...'
+
+  const copyInviteUrl = async () => {
+    if (!canCopy) return
+
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(inviteUrl)
+      } else {
+        copyWithFallback(inviteUrl)
+      }
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      copyWithFallback(inviteUrl)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    }
+  }
 
   return (
     <PhoneFrame>
@@ -102,7 +122,23 @@ export function InviteRoomScreen() {
                   <span className="ml-2.5 min-w-0 flex-1 truncate text-sm font-bold text-darkSub">
                     {inviteUrl}
                   </span>
+                  <button
+                    type="button"
+                    onClick={copyInviteUrl}
+                    disabled={!canCopy}
+                    className="ml-2 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accentBg disabled:opacity-40"
+                    aria-label="초대 링크 복사"
+                  >
+                    {copied ? (
+                      <Check aria-hidden="true" size={18} color={colors.accent} />
+                    ) : (
+                      <Copy aria-hidden="true" size={18} color={colors.accent} />
+                    )}
+                  </button>
                 </div>
+                <p className="mt-2 h-4 text-[11px] font-bold text-accent">
+                  {copied ? '초대 링크를 복사했어요' : ''}
+                </p>
               </div>
             </div>
             <div className="h-6" />
@@ -135,4 +171,16 @@ export function InviteRoomScreen() {
       </main>
     </PhoneFrame>
   )
+}
+
+function copyWithFallback(text: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
 }
