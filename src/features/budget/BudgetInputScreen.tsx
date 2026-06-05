@@ -26,8 +26,9 @@ export function BudgetInputScreen() {
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
+  const [submitMessage, setSubmitMessage] = useState('')
 
-  useEffect(() => {
+  const loadRoomState = async () => {
     Promise.all([
       getRoom(targetRoomNo).catch((err) => {
         console.error('방 정보 실패:', err)
@@ -60,6 +61,10 @@ export function BudgetInputScreen() {
       .finally(() => {
         setDataLoading(false)
       })
+  }
+
+  useEffect(() => {
+    void loadRoomState()
   }, [targetRoomNo])
 
   const startEditing = () => {
@@ -75,10 +80,18 @@ export function BudgetInputScreen() {
 
   const handleSubmit = async () => {
     setIsLoading(true)
+    setSubmitMessage('')
     try {
       await submitBudget(targetRoomNo, amount)
-      console.log('💰 백엔드 DB에 익명 예산 제출 성공!')
-      navigate(`/budget/result/${targetRoomNo}`)
+      const members = await getRoomMembers(targetRoomNo)
+      setRoomMembers(members)
+
+      if (members.length > 0 && members.every((member) => member.status === '제출 완료')) {
+        navigate(`/budget/result/${targetRoomNo}`)
+        return
+      }
+
+      setSubmitMessage('예산이 제출됐어요. 모든 친구가 입력하면 결과 화면으로 넘어가요.')
     } catch (error) {
       console.error('백엔드 서버 통신 에러:', error)
       alert('예산 제출에 실패했습니다. 서버 상태를 확인해주세요.')
@@ -177,8 +190,14 @@ export function BudgetInputScreen() {
           </div>
           <div className="h-6" />
 
+          {submitMessage && (
+            <p className="mb-3 text-center text-[13px] font-bold leading-5 text-accent">
+              {submitMessage}
+            </p>
+          )}
           <PrimaryButton
             label={isLoading ? '제출 중...' : '입력 완료'}
+            enabled={!isLoading}
             onTap={handleSubmit}
           />
           <div style={{ height: spacing.bottomSafe }} />

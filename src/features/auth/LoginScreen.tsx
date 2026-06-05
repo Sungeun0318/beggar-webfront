@@ -61,6 +61,16 @@ export function LoginScreen() {
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0
 
+  const navigateAfterLogin = () => {
+    const pendingPath = localStorage.getItem('pendingPath')
+    if (pendingPath) {
+      localStorage.removeItem('pendingPath')
+      navigate(pendingPath)
+      return
+    }
+    navigate('/home')
+  }
+
   useEffect(() => {
     const code = consumeKakaoCode()
     if (!code) return
@@ -68,7 +78,7 @@ export function LoginScreen() {
     setErrorMessage('')
     setIsKakaoSubmitting(true)
     void loginWithKakaoCode(code, getKakaoRedirectUri())
-      .then(() => navigate('/home'))
+      .then(navigateAfterLogin)
       .catch((error) => {
         setErrorMessage(
           error instanceof Error
@@ -86,7 +96,7 @@ export function LoginScreen() {
     setIsSubmitting(true)
     try {
       await login({ email: email.trim(), password })
-      navigate('/home')
+      navigateAfterLogin()
     } catch (error) {
       setErrorMessage(
         error instanceof Error

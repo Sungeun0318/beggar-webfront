@@ -1,4 +1,5 @@
 import { Link, LogIn } from 'lucide-react'
+import { useEffect } from 'react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -16,6 +17,13 @@ export function JoinRoomScreen() {
   const [roomCode, setRoomCode] = useState(code)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+
+  useEffect(() => {
+    if (!localStorage.getItem('accessToken')) {
+      localStorage.setItem('pendingPath', window.location.pathname)
+      navigate('/login', { replace: true })
+    }
+  }, [navigate])
 
   const submitJoin = async () => {
     const trimmedCode = roomCode.trim()
