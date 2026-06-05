@@ -25,12 +25,18 @@ export function InviteRoomScreen() {
   })
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
 
-useEffect(() => {
+  useEffect(() => {
     console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', targetRoomNo)
 
     Promise.all([
-      getRoom(targetRoomNo).catch(err => { console.error("방 정보 로딩 실패:", err); return null; }),
-      getRoomMembers(targetRoomNo).catch(err => { console.error("멤버 로딩 실패:", err); return null; })
+      getRoom(targetRoomNo).catch((err) => {
+        console.error('방 정보 로딩 실패:', err)
+        return null
+      }),
+      getRoomMembers(targetRoomNo).catch((err) => {
+        console.error('멤버 로딩 실패:', err)
+        return null
+      }),
     ])
       .then(([roomResponse, membersResponse]) => {
         console.log('📦 백엔드가 준 원본 방 데이터:', roomResponse)
@@ -39,23 +45,19 @@ useEffect(() => {
 
         if (roomResponse) {
           setRoomData({
-            roomName: roomResponse.roomName || roomResponse.name || '이름 없는 거지방',
-            roomCode: roomResponse.roomCode || roomResponse.code || 'code-error',
+            roomName: roomResponse.name || '이름 없는 거지방',
+            roomCode: roomResponse.code || 'code-error',
             maxMemberCount: roomResponse.maxMemberCount || 4,
           })
         }
 
-// 백엔드가 null을 주더라도 화면이 사라지지 않게 가짜 멤버로 방어
-        let finalMembers = []
-        if (membersResponse && membersResponse.data) {
-          finalMembers = membersResponse.data
-        } else if (Array.isArray(membersResponse) && membersResponse.length > 0) {
+        let finalMembers: Member[] = []
+        if (Array.isArray(membersResponse) && membersResponse.length > 0) {
           finalMembers = membersResponse
         } else {
-          // 백엔드가 null이나 빈 값을 주면, API가 완성될 때까지 임시로 띄워둘 가짜 데이터 그릇
           finalMembers = [
-            { name: '박소영 (나)', status: '방장', mine: true },
-            { name: '대기 중인 거지 1', status: '초대 중', mine: false }
+            { name: '나', status: '방장', mine: true },
+            { name: '대기 중인 거지 1', status: '초대 중', mine: false },
           ]
         }
 
@@ -66,7 +68,11 @@ useEffect(() => {
       })
   }, [targetRoomNo])
 
-  const inviteUrl = `beggar.app/join/${roomData.roomCode}`
+  const invitePath = `/join/${roomData.roomCode}`
+  const inviteUrl =
+    roomData.roomCode === 'loading...'
+      ? '초대 링크 생성 중...'
+      : `${window.location.origin}${invitePath}`
 
   return (
     <PhoneFrame>

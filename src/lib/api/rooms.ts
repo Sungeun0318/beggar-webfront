@@ -5,6 +5,7 @@ import { MOCK } from './mockMode'
 
 type CreateRoomRequest = {
   roomName: string
+  location?: string
   maxMemberCount: number
   isFriends: boolean
   tags: string[]
@@ -84,7 +85,15 @@ export async function joinRoom(code: string): Promise<Room> {
   }
 
   // 실제 경로: POST /rooms/join
-  return client.post<Room>('/rooms/join', { code })
+  const response = await client.post<ApiResponse<any>>('/rooms/join', { code })
+  const data = response.data
+
+  return {
+    ...data,
+    no: data.roomNo,
+    name: data.roomName,
+    code: data.roomCode,
+  }
 }
 
 export async function getRoomMembers(no: number): Promise<Member[]> {
@@ -93,5 +102,6 @@ export async function getRoomMembers(no: number): Promise<Member[]> {
   }
 
   // 실제 경로: GET /rooms/{no}/members
-  return client.getList<Member>(`/rooms/${no}/members`)
+  const response = await client.get<ApiResponse<Member[]>>(`/rooms/${no}/members`)
+  return response.data
 }

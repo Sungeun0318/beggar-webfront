@@ -27,25 +27,28 @@ export function BudgetInputScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
 
-useEffect(() => {
+  useEffect(() => {
     Promise.all([
-      getRoom(targetRoomNo).catch(err => { console.error("방 정보 실패:", err); return null; }),
-      getRoomMembers(targetRoomNo).catch(err => { console.error("멤버 실패:", err); return null; })
+      getRoom(targetRoomNo).catch((err) => {
+        console.error('방 정보 실패:', err)
+        return null
+      }),
+      getRoomMembers(targetRoomNo).catch((err) => {
+        console.error('멤버 실패:', err)
+        return null
+      }),
     ])
       .then(([roomData, membersData]) => {
         setRoom(roomData)
 
 
-        let finalMembers = []
-        if (membersData && membersData.data) {
-          finalMembers = membersData.data
-        } else if (Array.isArray(membersData)) {
+        let finalMembers: Member[] = []
+        if (Array.isArray(membersData)) {
           finalMembers = membersData
         } else {
-          // 🏷 백엔드가 완성되기 전까지 화면이 굳지 않게 띄워놓을 임시 가짜 데이터!
           finalMembers = [
-            { name: '박소영 (나)', status: '예산 입력 대기', mine: true },
-            { name: '대기 중인 거지 1', status: '입장 완료', mine: false }
+            { name: '나', status: '예산 입력 대기', mine: true },
+            { name: '대기 중인 거지 1', status: '입장 완료', mine: false },
           ]
         }
 

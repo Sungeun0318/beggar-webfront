@@ -18,6 +18,7 @@ import { ReceiptsScreen } from './features/receipts/ReceiptsScreen'
 import { ActiveRoomScreen } from './features/room/ActiveRoomScreen'
 import { CreateRoomScreen } from './features/room/CreateRoomScreen'
 import { InviteRoomScreen } from './features/room/InviteRoomScreen'
+import { JoinRoomScreen } from './features/room/JoinRoomScreen'
 import { RoomRatingScreen } from './features/room/RoomRatingScreen'
 import { RoomSettingsScreen } from './features/room/RoomSettingsScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -44,6 +45,8 @@ function App() {
         />
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite/:roomNo" element={<InviteRoomScreen />} />
+        <Route path="/room/join/:code" element={<JoinRoomScreen />} />
+        <Route path="/join/:code" element={<JoinRoomScreen />} />
         <Route path="/budget/input/:roomNo" element={<BudgetInputScreen />} />
         <Route path="/budget/result/:roomNo" element={<BudgetResultScreen />} />
         <Route path="/recommend" element={<RecommendationScreen />} />
