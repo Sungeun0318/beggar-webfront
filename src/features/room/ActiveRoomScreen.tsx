@@ -7,18 +7,22 @@ import {
   Settings,
   Trophy,
   WalletCards,
+  Loader2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { RecommendationCard } from '../../components/RecommendationCard'
 import { ReceiptCard } from '../../components/ReceiptCard'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { SummaryRow } from '../../components/SummaryRow'
+import { getBudgetResult } from '../../lib/api/budget'
+import { getRoom } from '../../lib/api/rooms'
 import { money } from '../../lib/format'
-import { budgetResult, receipts, room } from '../../mocks'
+import { receipts, room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
+import type { BudgetResult, Room } from '../../types'
 
 const tags = ['한식', '양식', '일식', '중식', '기타 요식업']
 
@@ -52,9 +56,44 @@ function RoomReceiptBar() {
 export function ActiveRoomScreen() {
   const navigate = useNavigate()
   const { no } = useParams()
-  const roomNo = Number(no ?? room.no) || room.no
+  const roomNo = Number(no) || mockRoom.no
+  
+  const [room, setRoom] = useState<Room | null>(null)
+  const [budget, setBudget] = useState<BudgetResult | null>(null)
+  const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
-  const total = budgetResult.totalBudget
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [roomData, budgetData] = await Promise.all([
+          getRoom(roomNo),
+          getBudgetResult(roomNo).catch(() => null), // 예산이 아직 없을 수 있음
+        ])
+        setRoom(roomData)
+        setBudget(budgetData)
+      } catch (error) {
+        console.error('Failed to fetch room data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [roomNo])
+
+  if (loading) {
+    return (
+      <PhoneFrame>
+        <main className="flex min-h-[852px] items-center justify-center bg-bg">
+          <Loader2 className="animate-spin" size={48} color={colors.accent} />
+        </main>
+      </PhoneFrame>
+    )
+  }
+
+  const displayRoom = room || mockRoom
+  const displayBudget = budget || mockBudgetResult
+  const total = displayBudget.totalBudget
   const spent = receipts[0].amount + receipts[1].amount
   const remaining = total - spent
 
@@ -74,11 +113,11 @@ export function ActiveRoomScreen() {
               className="text-center text-[21px] font-black text-text"
               style={{ letterSpacing: -0.7 }}
             >
-              거지방{roomNo}
+              {displayRoom.name}
             </h1>
             <button
               type="button"
-              onClick={() => navigate(`/room/${room.no}/settings`)}
+              onClick={() => navigate(`/room/${roomNo}/settings`)}
               className="absolute right-0 grid h-8 w-8 place-items-center"
             >
               <Settings aria-hidden="true" size={24} color={colors.text} />
@@ -95,7 +134,7 @@ export function ActiveRoomScreen() {
           <div className="h-2.5" />
           <button
             type="button"
-            onClick={() => navigate(`/room/${room.no}/rating`)}
+            onClick={() => navigate(`/room/${roomNo}/rating`)}
             className="w-full"
           >
             <SummaryRow

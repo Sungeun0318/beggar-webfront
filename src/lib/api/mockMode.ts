@@ -5,7 +5,7 @@ export const MOCK = {
   communityWrite: false,
   auth: false,
   rooms: true,
-  budget: true,
+  budget: false,
   receipts: true,
 } as const
 

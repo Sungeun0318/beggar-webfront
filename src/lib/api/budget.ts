@@ -9,7 +9,7 @@ export async function submitBudget(roomNo: number, amount: number): Promise<void
   }
 
   // 실제 경로: POST /rooms/{no}/budget
-  await client.post(`/rooms/${roomNo}/budget`, { amount })
+  await client.post(`/rooms/${roomNo}/budget`, { budgetAmount: amount })
 }
 
 export async function confirmBudget(roomNo: number): Promise<void> {

@@ -68,7 +68,7 @@ export function InviteRoomScreen() {
             <div className="h-6" />
             <PrimaryButton
               label="예산 입력 시작"
-              onTap={() => navigate('/budget/input')}
+              onTap={() => navigate(`/budget/input/${room.no}`)}
             />
             <div style={{ height: spacing.bottomSafe }} />
           </div>

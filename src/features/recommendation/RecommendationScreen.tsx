@@ -1,6 +1,6 @@
 import { LocateFixed, MapPin, Search, WalletCards, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
@@ -11,7 +11,7 @@ import { softBox } from '../../components/ui/softBox'
 import { getRecommendation } from '../../lib/api/recommendation'
 import { searchLocations } from '../../lib/api/locations'
 import { money } from '../../lib/format'
-import { room } from '../../mocks'
+import { room as mockRoom } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
 import type {
   LocationSearchResult,
@@ -39,8 +39,11 @@ const nearbyRadius = 5000
 
 export function RecommendationScreen() {
   const navigate = useNavigate()
-  const [selectedTag, setSelectedTag] = useState(room.tags[0] ?? '한식')
-  const [selectedRegion, setSelectedRegion] = useState(room.location)
+  const [searchParams] = useSearchParams()
+  const roomNo = Number(searchParams.get('roomNo')) || mockRoom.no
+
+  const [selectedTag, setSelectedTag] = useState(mockRoom.tags[0] ?? '한식')
+  const [selectedRegion, setSelectedRegion] = useState(mockRoom.location)
   const [selectedRegionQuery, setSelectedRegionQuery] = useState<string | null>(
     null,
   )
@@ -54,7 +57,7 @@ export function RecommendationScreen() {
   const [locationError, setLocationError] = useState<string | null>(null)
 
   useEffect(() => {
-    void getRecommendation(room.no, {
+    void getRecommendation(roomNo, {
       tag: selectedTag,
       region:
         selectedRegionQuery ??
@@ -63,7 +66,7 @@ export function RecommendationScreen() {
       lng: selectedLng ?? undefined,
       radius: selectedLat === null ? undefined : nearbyRadius,
     }).then(setResult)
-  }, [selectedLat, selectedLng, selectedRegion, selectedRegionQuery, selectedTag])
+  }, [roomNo, selectedLat, selectedLng, selectedRegion, selectedRegionQuery, selectedTag])
 
   const recommendationBudget = result?.recommendationBudget
   const budgetLabel =
@@ -90,11 +93,11 @@ export function RecommendationScreen() {
           </button>
           <div className="h-2.5" />
           <SummaryRow Icon={WalletCards} label={budgetLabel} bg="#F4F6FF" />
-          {room.tags.length > 1 && (
+          {mockRoom.tags.length > 1 && (
             <>
               <div className="h-4" />
               <div className="flex flex-wrap gap-2">
-                {room.tags.map((tag) => {
+                {mockRoom.tags.map((tag) => {
                   const selected = selectedTag === tag
                   return (
                     <button
@@ -167,7 +170,7 @@ export function RecommendationScreen() {
           <div className="h-6" />
           <PrimaryButton
             label="거지방 시작하기"
-            onTap={() => navigate(`/room/${room.no}`)}
+            onTap={() => navigate(`/room/${roomNo}`)}
           />
           <div style={{ height: spacing.bottomSafe }} />
         </section>
