@@ -5,6 +5,16 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    allowedHosts: true,
+    proxy: {
+      '/auth': 'http://127.0.0.1:8080',
+      '/users': 'http://127.0.0.1:8080',
+      '/rooms': 'http://127.0.0.1:8080',
+      '/locations': 'http://127.0.0.1:8080',
+      '/api': 'http://127.0.0.1:8080',
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
