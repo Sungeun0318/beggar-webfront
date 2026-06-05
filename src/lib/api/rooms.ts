@@ -4,10 +4,10 @@ import { client } from './client'
 import { MOCK } from './mockMode'
 
 type CreateRoomRequest = {
-  name: string
-  location: string
+  roomName: string
+  maxMemberCount: number
+  isFriends: boolean
   tags: string[]
-  memberCount: number
 }
 
 type UpdateRoomSettingsRequest = Partial<{
@@ -16,6 +16,12 @@ type UpdateRoomSettingsRequest = Partial<{
   tags: string[]
   maxMemberCount: number
 }>
+
+type ApiResponse<T> = {
+  success: boolean
+  data: T
+  message: string
+}
 
 export async function getMyRooms(): Promise<Room[]> {
   if (MOCK.rooms) {
@@ -28,11 +34,19 @@ export async function getMyRooms(): Promise<Room[]> {
 
 export async function createRoom(request: CreateRoomRequest): Promise<Room> {
   if (MOCK.rooms) {
-    return { ...room, ...request }
+    return { ...room, ...request, no: 1 } as any
   }
 
   // 실제 경로: POST /rooms
-  return client.post<Room>('/rooms', request)
+  const response = await client.post<ApiResponse<any>>('/rooms', request)
+  const data = response.data
+
+  return {
+    ...data,
+    no: data.roomNo,
+    name: data.roomName,
+    code: data.roomCode,
+  }
 }
 
 export async function getRoom(no: number): Promise<Room> {
@@ -41,7 +55,15 @@ export async function getRoom(no: number): Promise<Room> {
   }
 
   // 실제 경로: GET /rooms/{no}
-  return client.get<Room>(`/rooms/${no}`)
+  const response = await client.get<ApiResponse<any>>(`/rooms/${no}`)
+  const data = response.data
+
+  return {
+    ...data,
+    no: data.roomNo,
+    name: data.roomName,
+    code: data.roomCode,
+  }
 }
 
 export async function updateRoomSettings(

@@ -9,9 +9,10 @@ import {
   Users,
   Utensils,
   type LucideIcon,
+  Loader2,
 } from 'lucide-react'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { ChoiceBox } from '../../components/ChoiceBox'
@@ -20,9 +21,11 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
-import { currentUser, room } from '../../mocks'
+import { getRoom, updateRoomSettings } from '../../lib/api/rooms'
+import { currentUser } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
+import type { Room } from '../../types'
 
 const tags: Array<{ label: string; Icon: LucideIcon; full?: boolean }> = [
   { label: '한식', Icon: Utensils },
@@ -55,14 +58,58 @@ function InfoRow({
 
 export function RoomSettingsScreen() {
   const navigate = useNavigate()
-  const [maxMemberCount, setMaxMemberCount] = useState(room.maxMemberCount)
-  const [selectedTag, setSelectedTag] = useState(room.tags[0] ?? '한식')
+  const { no } = useParams()
+  const roomNo = Number(no) || 1
+
+  const [room, setRoom] = useState<Room | null>(null)
+  const [maxMemberCount, setMaxMemberCount] = useState(0)
+  const [selectedTag, setSelectedTag] = useState('한식')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getRoom(roomNo)
+      .then((data) => {
+        setRoom(data)
+        setMaxMemberCount(data.maxMemberCount)
+        setSelectedTag(data.tags[0] ?? '한식')
+      })
+      .catch((err) => {
+        console.error('🔥 방 정보 로딩 실패:', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [roomNo])
+
+  if (loading || !room) {
+    return (
+      <PhoneFrame>
+        <main className="flex min-h-[852px] items-center justify-center bg-bg">
+          <Loader2 className="animate-spin" size={48} color={colors.accent} />
+        </main>
+      </PhoneFrame>
+    )
+  }
+
   const isOwner = currentUser.no === room.ownerNo
 
   const changeMaxMemberCount = (delta: number) => {
     setMaxMemberCount((current) =>
       Math.min(Math.max(current + delta, room.memberCount), 100),
     )
+  }
+
+  const handleSave = async () => {
+    try {
+      await updateRoomSettings(roomNo, {
+        maxMemberCount,
+        tags: [selectedTag],
+      })
+      navigate(`/room/${roomNo}`)
+    } catch (err) {
+      console.error('🔥 설정 저장 실패:', err)
+      alert('설정 저장에 실패했습니다.')
+    }
   }
 
   return (
@@ -180,10 +227,7 @@ export function RoomSettingsScreen() {
               </button>
             ))}
           <div className="h-[38px]" />
-          <PrimaryButton
-            label="설정 저장"
-            onTap={() => navigate(`/room/${room.no}`)}
-          />
+          <PrimaryButton label="설정 저장" onTap={handleSave} />
           <div style={{ height: spacing.bottomSafe }} />
         </section>
       </main>

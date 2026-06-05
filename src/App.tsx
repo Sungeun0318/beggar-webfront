@@ -43,7 +43,7 @@ function App() {
           element={<CommunityPostWriteScreen />}
         />
         <Route path="/room/create" element={<CreateRoomScreen />} />
-        <Route path="/room/invite" element={<InviteRoomScreen />} />
+        <Route path="/room/invite/:roomNo" element={<InviteRoomScreen />} />
         <Route path="/budget/input/:roomNo" element={<BudgetInputScreen />} />
         <Route path="/budget/result/:roomNo" element={<BudgetResultScreen />} />
         <Route path="/recommend" element={<RecommendationScreen />} />

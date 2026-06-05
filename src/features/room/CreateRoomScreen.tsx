@@ -25,6 +25,7 @@ import { SectionTitle } from '../../components/SectionTitle'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import { searchLocations } from '../../lib/api/locations'
+import { createRoom } from '../../lib/api/rooms'
 import type { LocationSearchResult } from '../../types'
 
 const tags: Array<{ label: string; Icon: LucideIcon; full?: boolean }> = [
@@ -188,7 +189,31 @@ export function CreateRoomScreen() {
           <div className="h-6" />
           <PrimaryButton
             label="방 만들기"
-            onTap={() => navigate('/room/invite')}
+            onTap={() => {
+              if (!roomName.trim()) {
+                alert('거지방 이름을 입력해 주세요!')
+                return
+              }
+
+              const requestBody = {
+                roomName: roomName,
+                maxMemberCount: maxMemberCount,
+                isFriends: true,
+                tags: selectedTag ? [selectedTag] : [],
+              }
+
+              console.log('👑 백엔드로 방 생성 요청 발송!!', requestBody)
+
+              createRoom(requestBody)
+                .then((newRoom) => {
+                  console.log('🎯 백엔드가 방 생성 후 돌려준 데이터:', newRoom)
+                  navigate(`/room/invite/${newRoom.no}`)
+                })
+                .catch((err) => {
+                  console.error('🔥 방 생성 중 오류:', err)
+                  alert(err.message || '방 생성에 실패했습니다.')
+                })
+            }}
           />
           <div className="h-6" />
         </section>

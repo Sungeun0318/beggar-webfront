@@ -18,11 +18,23 @@ export function BudgetResultScreen() {
   const [data, setData] = useState<BudgetResult | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+useEffect(() => {
     async function fetchData() {
       try {
         const result = await getBudgetResult(Number(roomNo))
-        setData(result)
+        console.log('📦 백엔드가 준 결과 화면 원본 통:', result)
+
+
+        const serverData = result && result.data ? result.data : result
+
+        if (serverData) {
+
+          setData({
+            memberCount: serverData.memberCount || 0,
+            minBudgetPerPerson: serverData.minBudgetPerPerson || 0,
+            totalBudget: serverData.totalBudget || 0
+          })
+        }
       } catch (error) {
         console.error('Failed to fetch budget result:', error)
       } finally {

@@ -9,8 +9,12 @@ export function SplashScreen() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      // TODO(STEP 9): 저장된 토큰 기반 자동 로그인 분기 추가.
-      navigate('/login')
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        navigate('/home')
+      } else {
+        navigate('/login')
+      }
     }, 1100)
 
     return () => window.clearTimeout(timer)
