@@ -27,6 +27,7 @@ export function BudgetInputScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   const [submitMessage, setSubmitMessage] = useState('')
+  const [hasSubmitted, setHasSubmitted] = useState(false)
 
   const loadRoomState = async () => {
     Promise.all([
@@ -67,6 +68,21 @@ export function BudgetInputScreen() {
     void loadRoomState()
   }, [targetRoomNo])
 
+  useEffect(() => {
+    if (!hasSubmitted) return
+
+    const timer = window.setInterval(() => {
+      void getRoomMembers(targetRoomNo).then((members) => {
+        setRoomMembers(members)
+        if (members.length > 0 && members.every((member) => member.status === '제출 완료')) {
+          navigate(`/budget/result/${targetRoomNo}`)
+        }
+      })
+    }, 2500)
+
+    return () => window.clearInterval(timer)
+  }, [hasSubmitted, navigate, targetRoomNo])
+
   const startEditing = () => {
     setDraftAmount(String(amount))
     setIsEditing(true)
@@ -83,6 +99,7 @@ export function BudgetInputScreen() {
     setSubmitMessage('')
     try {
       await submitBudget(targetRoomNo, amount)
+      setHasSubmitted(true)
       const members = await getRoomMembers(targetRoomNo)
       setRoomMembers(members)
 
