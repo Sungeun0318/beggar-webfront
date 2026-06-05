@@ -33,7 +33,7 @@ export function JoinRoomScreen() {
     setIsSubmitting(true)
     try {
       const room = await joinRoom(trimmedCode)
-      navigate(`/room/${room.no}`)
+      navigate(`/budget/input/${room.no}`)
     } catch (error) {
       setErrorMessage(
         error instanceof Error
