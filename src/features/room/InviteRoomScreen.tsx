@@ -1,6 +1,6 @@
 import { Check, Copy, Link, MessageCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { InfoCard } from '../../components/InfoCard'
@@ -16,12 +16,16 @@ import type { Member } from '../../types'
 export function InviteRoomScreen() {
   const navigate = useNavigate()
   const { roomNo } = useParams()
+  const location = useLocation()
   const targetRoomNo = Number(roomNo) || 1
 
+  // 방 생성 직후 넘어온 경우, 생성 응답의 roomCode를 바로 사용 (백엔드 GET /rooms/{no} 미구현 대비)
+  const presetRoom = (location.state as { room?: { name?: string; code?: string; maxMemberCount?: number } } | null)?.room
+
   const [roomData, setRoomData] = useState({
-    roomName: '로딩 중...',
-    roomCode: 'loading...',
-    maxMemberCount: 0,
+    roomName: presetRoom?.name ?? '로딩 중...',
+    roomCode: presetRoom?.code ?? 'loading...',
+    maxMemberCount: presetRoom?.maxMemberCount ?? 0,
   })
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
   const [copied, setCopied] = useState(false)
