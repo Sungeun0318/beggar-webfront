@@ -18,7 +18,9 @@ export class ApiError extends Error {
   }
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
+const defaultBaseUrl =
+  'http://savemyfriendship-env.eba-h8rmizc9.ap-northeast-2.elasticbeanstalk.com'
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? defaultBaseUrl
 
 function buildUrl(path: string, query?: Query) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
