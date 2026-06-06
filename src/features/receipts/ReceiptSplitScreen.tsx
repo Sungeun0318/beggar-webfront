@@ -1,15 +1,14 @@
-import { Check, Minus, Plus, Scissors, Users } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Camera, Check, Image, Minus, Plus, Scissors, Users } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
-import { PrimaryButton } from '../../components/PrimaryButton'
 import { RoundIcon } from '../../components/RoundIcon'
 import { softBox } from '../../components/ui/softBox'
 import { money } from '../../lib/format'
 import { members, receipts } from '../../mocks'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, gradients, radii, spacing } from '../../theme/tokens'
 
 const initialTotal = receipts[2]?.amount ?? 52000
 
@@ -27,6 +26,9 @@ function toEqualSplit(total: number) {
 
 export function ReceiptSplitScreen() {
   const navigate = useNavigate()
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
   const [totalAmount, setTotalAmount] = useState(initialTotal)
   const [mode, setMode] = useState<SplitMode>('equal')
   const [splits, setSplits] = useState(() => toEqualSplit(initialTotal))
@@ -61,6 +63,15 @@ export function ReceiptSplitScreen() {
     )
   }
 
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // 실제 구현 시에는 여기서 OCR API를 호출하거나 이미지를 업로드합니다.
+      console.log('Selected file:', file.name)
+      navigate('/receipts')
+    }
+  }
+
   return (
     <PhoneFrame height={930}>
       <main className="min-h-[930px] bg-bg">
@@ -70,6 +81,22 @@ export function ReceiptSplitScreen() {
           className="px-pageH pt-2"
           style={{ paddingBottom: spacing.bottomSafe }}
         >
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={cameraInputRef}
+            onChange={handlePhotoChange}
+            className="hidden"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            ref={galleryInputRef}
+            onChange={handlePhotoChange}
+            className="hidden"
+          />
+
           <div
             className="p-5"
             style={softBox({ color: colors.accentBg, radius: radii.card })}
@@ -201,12 +228,25 @@ export function ReceiptSplitScreen() {
             조정할 수 있게 둬요.
           </div>
 
-          <div className="mt-6">
-            <PrimaryButton
-              label="분할 영수증 등록"
-              onTap={() => navigate('/receipts')}
-              enabled={remaining === 0}
-            />
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex h-[60px] flex-1 items-center justify-center gap-2 rounded-card text-[15px] font-bold text-white shadow-md"
+              style={{ background: gradients.goldGradient }}
+            >
+              <Camera size={20} />
+              카메라
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="flex h-[60px] flex-1 items-center justify-center gap-2 rounded-card text-[15px] font-bold text-white shadow-md"
+              style={{ background: gradients.goldGradient }}
+            >
+              <Image size={20} />
+              갤러리
+            </button>
           </div>
         </section>
       </main>

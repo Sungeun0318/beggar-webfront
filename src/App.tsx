@@ -24,10 +24,12 @@ import { RoomSettingsScreen } from './features/room/RoomSettingsScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 
 function App() {
+  const hasKakaoCode = new URLSearchParams(window.location.search).has('code')
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<SplashScreen />} />
+        <Route path="/" element={hasKakaoCode ? <LoginScreen /> : <SplashScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/mypage" element={<MyPageScreen />} />
