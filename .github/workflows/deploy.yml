@@ -26,6 +26,11 @@ jobs:                             # [필수] 작업(Job) 집합 정의
           echo "KAKAO_NATIVE_APP_KEY=${{ secrets.KAKAO_NATIVE_APP_KEY }}" >> .env
         shell: bash
 
+      # +) 파일 생성 확인 임시 추가
+      - name: Check credentials file
+        run: cat src/main/resources/google-service-account-key.json | head -3
+        shell: bash
+
       # 4. NPM 의존성 설치 및 빌드
       - name: Install dependencies and Build    # [필수] 리액트 빌드 (정적 파일 생성)
         run: |
