@@ -52,18 +52,37 @@ export async function createRoom(request: CreateRoomRequest): Promise<Room> {
 
 export async function getRoom(no: number): Promise<Room> {
   if (MOCK.rooms) {
-    return room
+    return { ...room, no }
   }
 
-  // 실제 경로: GET /rooms/{no}
-  const response = await client.get<ApiResponse<any>>(`/rooms/${no}`)
-  const data = response.data
+  try {
+    // 실제 경로: GET /rooms/{no}
+    const response = await client.get<ApiResponse<any>>(`/rooms/${no}`)
 
-  return {
-    ...data,
-    no: data.roomNo,
-    name: data.roomName,
-    code: data.roomCode,
+    // 백엔드 에러가 나서 response나 response.data가 없을 때를 대비한 촘촘한 방어벽!
+    const data = response && response.data ? response.data : response
+
+    if (!data) {
+      throw new Error('백엔드 알맹이 데이터가 비어있습니다.')
+    }
+
+    return {
+      ...room, // 기본 목 데이터로 필드 채워두기 (ownerNo, location, tags 등)
+      ...data,
+      no: data.roomNo || no,
+      name: data.roomName || data.name || '로딩 실패방',
+      code: data.roomCode || data.code || '',
+    }
+  } catch (error) {
+    console.error(`🔥 getRoom(${no}) 호출 도중 치명적 에러 캐치:`, error)
+    // 튕기지 않게 최소한의 가짜 데이터 그릇이라도 리턴해서 화면을 살려둡니다!
+    return {
+      ...room,
+      no,
+      name: '예산 확정 정산 중...',
+      code: '',
+      maxMemberCount: 4,
+    } as any
   }
 }
 
@@ -104,4 +123,13 @@ export async function getRoomMembers(no: number): Promise<Member[]> {
   // 실제 경로: GET /rooms/{no}/members
   const response = await client.get<ApiResponse<Member[]>>(`/rooms/${no}/members`)
   return response.data
+}
+
+export async function startBudgetInput(no: number): Promise<void> {
+  if (MOCK.rooms) {
+    return
+  }
+
+  // ���� ���: POST /rooms/{no}/budget/start
+  await client.post(/rooms//budget/start)
 }

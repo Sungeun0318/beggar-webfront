@@ -1,18 +1,19 @@
-import { Edit3, Info, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Edit3, Info, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 
-import { AppHeaderTitled } from '../../components/AppHeader'
-import { ParticipantTile } from '../../components/ParticipantTile'
-import { PhoneFrame } from '../../components/PhoneFrame'
-import { PrimaryButton } from '../../components/PrimaryButton'
-import { SectionTitle } from '../../components/SectionTitle'
-import { submitBudget } from '../../lib/api/budget'
-import { getRoom, getRoomMembers } from '../../lib/api/rooms'
-import { money } from '../../lib/format'
-import { colors, radii, spacing } from '../../theme/tokens'
-import { softBox } from '../../components/ui/softBox'
-import type { Member, Room } from '../../types'
+import { AppHeaderTitled } from "../../components/AppHeader"
+import { ParticipantTile } from "../../components/ParticipantTile"
+import { PhoneFrame } from "../../components/PhoneFrame"
+import { PrimaryButton } from "../../components/PrimaryButton"
+import { SectionTitle } from "../../components/SectionTitle"
+import { submitBudget } from "../../lib/api/budget"
+import { getRoom, getRoomMembers } from "../../lib/api/rooms"
+import { wsClient } from "../../lib/websocket"
+import { money } from "../../lib/format"
+import { colors, radii, spacing } from "../../theme/tokens"
+import { softBox } from "../../components/ui/softBox"
+import type { Member, Room } from "../../types"
 
 export function BudgetInputScreen() {
   const navigate = useNavigate()
@@ -26,62 +27,62 @@ export function BudgetInputScreen() {
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
-  const [submitMessage, setSubmitMessage] = useState('')
+  const [submitMessage, setSubmitMessage] = useState("")
   const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [submittedCount, setSubmittedCount] = useState(0)
 
   const loadRoomState = async () => {
-    Promise.all([
-      getRoom(targetRoomNo).catch((err) => {
-        console.error('방 정보 실패:', err)
-        return null
-      }),
-      getRoomMembers(targetRoomNo).catch((err) => {
-        console.error('멤버 실패:', err)
-        return null
-      }),
-    ])
-      .then(([roomData, membersData]) => {
-        setRoom(roomData)
-
-
-        let finalMembers: Member[] = []
-        if (Array.isArray(membersData)) {
-          finalMembers = membersData
-        } else {
-          finalMembers = [
-            { name: '나', status: '예산 입력 대기', mine: true },
-            { name: '대기 중인 거지 1', status: '입장 완료', mine: false },
-          ]
-        }
-
-        setRoomMembers(finalMembers)
-      })
-      .catch((err) => {
-        console.error('🔥 데이터 로딩 실패:', err)
-      })
-      .finally(() => {
-        setDataLoading(false)
-      })
+    try {
+      const [roomData, membersData] = await Promise.all([
+        getRoom(targetRoomNo),
+        getRoomMembers(targetRoomNo),
+      ])
+      setRoom(roomData)
+      setRoomMembers(membersData)
+      setSubmittedCount(membersData.filter(m => m.budgetSubmitted).length)
+    } catch (err) {
+      console.error("?�이??로딩 ?�패:", err)
+    } finally {
+      setDataLoading(false)
+    }
   }
 
   useEffect(() => {
-    void loadRoomState()
-  }, [targetRoomNo])
+    loadRoomState()
 
-  useEffect(() => {
-    if (!hasSubmitted) return
-
-    const timer = window.setInterval(() => {
-      void getRoomMembers(targetRoomNo).then((members) => {
-        setRoomMembers(members)
-        if (members.length > 0 && members.every((member) => member.status === '제출 완료')) {
-          navigate(`/budget/result/${targetRoomNo}`)
+    wsClient.connect(() => {
+      // 1. 멤버 목록 ?�이?�용 (멤버� ?�출?�면 멤버 ?�태 � �?처리�?같이 ?�수?�음)
+      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
+        const event = JSON.parse(message.body)
+        if (event.type === "MEMBERS_UPDATED") {
+          setRoomMembers(event.data)
+          setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
         }
       })
-    }, 2500)
 
-    return () => window.clearInterval(timer)
-  }, [hasSubmitted, navigate, targetRoomNo])
+      // 2. ?�산 ?�출 ?�황 �ò? (?�제 멤버 ?�출 번호�??�인)
+      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/budget`, (message) => {
+        const event = JSON.parse(message.body)
+        if (event.type === "BUDGET_SUBMITTED") {
+          setSubmittedCount(event.data.submittedCount)
+          // 멤버 목록???�시 붵���?? ?�출 ?�료 처리 ?�인
+          getRoomMembers(targetRoomNo).then(setRoomMembers)
+        }
+      })
+
+      // 3. ?�산 ?�정 ?�벤??구동
+      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/state`, (message) => {
+        const event = JSON.parse(message.body)
+        if (event.type === "BUDGET_CONFIRMED") {
+          navigate(event.data)
+        }
+      })
+    })
+
+    return () => {
+      wsClient.disconnect()
+    }
+  }, [targetRoomNo, navigate])
 
   const startEditing = () => {
     setDraftAmount(String(amount))
@@ -89,29 +90,20 @@ export function BudgetInputScreen() {
   }
 
   const commitAmount = () => {
-    const nextAmount = Number(draftAmount.replace(/\D/g, ''))
+    const nextAmount = Number(draftAmount.replace(/\D/g, ""))
     setAmount(Number.isFinite(nextAmount) ? nextAmount : amount)
     setIsEditing(false)
   }
 
   const handleSubmit = async () => {
     setIsLoading(true)
-    setSubmitMessage('')
+    setSubmitMessage("")
     try {
       await submitBudget(targetRoomNo, amount)
       setHasSubmitted(true)
-      const members = await getRoomMembers(targetRoomNo)
-      setRoomMembers(members)
-
-      if (members.length > 0 && members.every((member) => member.status === '제출 완료')) {
-        navigate(`/budget/result/${targetRoomNo}`)
-        return
-      }
-
-      setSubmitMessage('예산이 제출됐어요. 모든 친구가 입력하면 결과 화면으로 넘어가요.')
+      setSubmitMessage("?�산???�출?�어?? 모든 친구� ?�력?�면 결과 ?�면?�로 ?�어�??")
     } catch (error) {
-      console.error('백엔드 서버 통신 에러:', error)
-      alert('예산 제출에 실패했습니다. 서버 상태를 확인해주세요.')
+      alert("?�산 ?�출???�패?�습?�다.")
     } finally {
       setIsLoading(false)
     }
@@ -130,7 +122,7 @@ export function BudgetInputScreen() {
   return (
     <PhoneFrame height={930}>
       <main className="relative min-h-[930px] bg-bg">
-        <AppHeaderTitled title="예산 입력" onBack={() => navigate(-1)} />
+        <AppHeaderTitled title="?�산 ?�력" onBack={() => navigate(-1)} />
         <section className="px-pageH pt-2">
           <div
             className="w-full p-5"
@@ -138,11 +130,11 @@ export function BudgetInputScreen() {
           >
             <h1 className="text-lg font-bold text-text">{room.name}</h1>
             <p className="mt-2 text-[13px] font-semibold text-sub">
-              참여 인원 {room.memberCount} / {room.maxMemberCount}명
+              참여 ?�원 {roomMembers.length} / {room.maxMemberCount}�? ( {submittedCount}�??�출 )
             </p>
           </div>
           <div className="h-6" />
-          <SectionTitle text="내 예산을 입력해주세요" />
+          <SectionTitle text="???�산???�력?�주?�요" />
           <div className="h-[13px]" />
           <div
             onClick={() => {
@@ -156,12 +148,12 @@ export function BudgetInputScreen() {
                 autoFocus
                 value={draftAmount}
                 onChange={(event) => {
-                  setDraftAmount(event.target.value.replace(/\D/g, ''))
+                  setDraftAmount(event.target.value.replace(/\D/g, ""))
                 }}
                 onBlur={commitAmount}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') commitAmount()
-                  if (event.key === 'Escape') setIsEditing(false)
+                  if (event.key === "Enter") commitAmount()
+                  if (event.key === "Escape") setIsEditing(false)
                 }}
                 inputMode="numeric"
                 className="w-[150px] bg-transparent text-[28px] font-bold text-text outline-none"
@@ -171,7 +163,7 @@ export function BudgetInputScreen() {
                 {money(amount)}
               </span>
             )}
-            <span className="ml-1 text-lg font-semibold text-sub">원</span>
+            <span className="ml-1 text-lg font-semibold text-sub">??/span>
             <div className="flex-1" />
             <Edit3
               aria-hidden="true"
@@ -181,13 +173,13 @@ export function BudgetInputScreen() {
             />
           </div>
           <div className="h-7" />
-          <SectionTitle text="참여자 입력 현황" />
+          <SectionTitle text="참여???�력 ?�황" />
           <div className="h-3.5" />
           {roomMembers.map((member) => (
             <ParticipantTile
               key={member.name}
               name={member.name}
-              status={member.status}
+              status={member.budgetSubmitted ? "?�출 ?�료" : "?�장 ?�료"}
               active={member.mine}
             />
           ))}
@@ -200,9 +192,9 @@ export function BudgetInputScreen() {
               className="mt-0.5 shrink-0"
             />
             <p className="ml-2 text-[13px] font-semibold leading-[1.5] text-sub">
-              시스템이 가장 낮은 제출 금액을 기준으로
+              ?�스?�이 �????? ?�출 금액??기�??�로
               <br />
-              오늘의 총예산을 계산해요.
+              ?�늘??총예?�을 계산?�요.
             </p>
           </div>
           <div className="h-6" />
@@ -213,8 +205,8 @@ export function BudgetInputScreen() {
             </p>
           )}
           <PrimaryButton
-            label={isLoading ? '제출 중...' : '입력 완료'}
-            enabled={!isLoading}
+            label={isLoading ? "?�출 �?.." : "?�력 ?�료"}
+            enabled={!isLoading && !hasSubmitted}
             onTap={handleSubmit}
           />
           <div style={{ height: spacing.bottomSafe }} />
@@ -223,3 +215,4 @@ export function BudgetInputScreen() {
     </PhoneFrame>
   )
 }
+

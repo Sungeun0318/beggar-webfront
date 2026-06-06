@@ -1,7 +1,7 @@
-import { currentUser } from '../../mocks'
-import type { User } from '../../types'
-import { client } from './client'
-import { MOCK } from './mockMode'
+import { currentUser } from "../../mocks"
+import type { User } from "../../types"
+import { client } from "./client"
+import { MOCK } from "./mockMode"
 
 type LoginRequest = {
   email: string
@@ -30,14 +30,15 @@ export async function login({ email, password }: LoginRequest): Promise<User> {
     return currentUser
   }
 
-  // 실제 경로: POST /auth/login
-  const response = await client.post<LoginResponse>('/auth/login', {
+  const response = await client.post<LoginResponse>("/auth/login", {
     email,
     password,
   })
-  localStorage.setItem('accessToken', response.data.accessToken)
+  localStorage.setItem("accessToken", response.data.accessToken)
+  localStorage.setItem("userNo", response.data.userNo.toString())
+  localStorage.setItem("userName", response.data.userName)
   if (response.data.refreshToken) {
-    localStorage.setItem('refreshToken', response.data.refreshToken)
+    localStorage.setItem("refreshToken", response.data.refreshToken)
   }
 
   return {
@@ -52,8 +53,7 @@ export async function signup(request: SignupRequest): Promise<void> {
     return
   }
 
-  // 실제 경로: POST /users/signup
-  await client.post('/users/signup', {
+  await client.post("/users/signup", {
     email: request.email,
     password: request.password,
     userName: request.nickname,
@@ -70,14 +70,15 @@ export async function loginWithKakaoCode(
     return currentUser
   }
 
-  // 실제 경로: POST /auth/kakao/code
-  const response = await client.post<LoginResponse>('/auth/kakao/code', {
+  const response = await client.post<LoginResponse>("/auth/kakao/code", {
     code,
     redirectUri,
   })
-  localStorage.setItem('accessToken', response.data.accessToken)
+  localStorage.setItem("accessToken", response.data.accessToken)
+  localStorage.setItem("userNo", response.data.userNo.toString())
+  localStorage.setItem("userName", response.data.userName)
   if (response.data.refreshToken) {
-    localStorage.setItem('refreshToken', response.data.refreshToken)
+    localStorage.setItem("refreshToken", response.data.refreshToken)
   }
 
   return {
