@@ -1,4 +1,4 @@
-name: React Client Deploy to S3   # [필수] GitHub Actions 이름 (가독성용)
+name: React Client Deploy to S3   # [필수] GitHub Actions 이름 (가독성 용)
 
 on:                                               # [필수] 언제 실행할지 정의
   push:                                           # [필수] push 이벤트 기반 실행
