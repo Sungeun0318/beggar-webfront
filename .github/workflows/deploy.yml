@@ -19,14 +19,21 @@ jobs:                             # [필수] 작업(Job) 집합 정의
         with:
           node-version: '20'                    # [필수] 프로젝트 Node.js 버전 정의
 
-      # 3. NPM 의존성 설치 및 빌드
+      # 3. 배포 환경 파일 생성
+      - name: Create .env file                  # [필수] 배포 환경 환경변수 파일 생성
+        run: |
+          echo "API_BASE_URL=${{ secrets.API_BASE_URL }}" >> .env
+          echo "KAKAO_NATIVE_APP_KEY=${{ secrets.KAKAO_NATIVE_APP_KEY }}" >> .env
+        shell: bash
+
+      # 4. NPM 의존성 설치 및 빌드
       - name: Install dependencies and Build    # [필수] 리액트 빌드 (정적 파일 생성)
         run: |
           npm install
           npm run build
         shell: bash                             # [필수] bash 쉘 사용
 
-      # 4. AWS 자격 증명 설정
+      # 5. AWS 자격 증명 설정
       - name: Configure AWS Credentials                               # [필수] AWS 권한 인증 단계
         uses: aws-actions/configure-aws-credentials@v2                # [필수] AWS 공식 자격증명 액션
         with:
@@ -34,7 +41,7 @@ jobs:                             # [필수] 작업(Job) 집합 정의
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # [필수] IAM Secret
           aws-region: ap-northeast-2                                  # [필수] AWS 서울리전
 
-      # 5. AWS S3 버킷 동기화 배포
+      # 6. AWS S3 버킷 동기화 배포
       - name: Deploy to S3                                            # [필수] S3 버킷으로 배포하는 단계
         run: aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }} --delete
         shell: bash                                                   # [필수] bash 쉘 사용
