@@ -1,6 +1,6 @@
 import { Camera, Check, Image, Minus, Plus, Scissors, Users, Store, Search, Loader2, MapPin } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
@@ -10,11 +10,11 @@ import { softBox } from '../../components/ui/softBox'
 import { money } from '../../lib/format'
 import { members, receipts } from '../../mocks'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt } from '../../lib/api/receipts'
+import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
 import { colors, gradients, radii, spacing } from '../../theme/tokens'
 import type { LocationSearchResult } from '../../types'
 
-const initialTotal = receipts[2]?.amount ?? 52000
+const initialTotal = 0
 
 type SplitMode = 'equal' | 'custom'
 
@@ -30,8 +30,19 @@ function toEqualSplit(total: number) {
 
 export function ReceiptSplitScreen() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const roomNo = Number(searchParams.get('roomNo')) || 1
+
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+
+  const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeInputMethod, setActiveInputMethod] = useState<'CAMERA' | 'GALLERY' | 'MANUAL'>('MANUAL')
+
+  // OCR 확인용 임시 상태
+  const [pendingOcrResult, setPendingOcrResult] = useState<{ storeName: string; amount: number } | null>(null)
 
   const [storeName, setStoreName] = useState('')
   const [totalAmount, setTotalAmount] = useState(initialTotal)
@@ -116,12 +127,75 @@ export function ReceiptSplitScreen() {
     setMode('custom')
   }
 
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // OCR 결과 폴링
+  const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
+    if (!receiptId) {
+      setOcrLoading(false)
+      alert('영수증 생성에 실패했습니다. 직접 입력해주세요.')
+      return
+    }
+
+    let attempts = 0
+    const maxAttempts = 30
+
+    const interval = setInterval(async () => {
+      attempts++
+      try {
+        const detail = await getReceiptDetail(targetRoomNo, receiptId)
+        
+        // 분석 완료 조건
+        const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''
+        const hasAmount = (detail.totalAmount && detail.totalAmount !== 0) || (detail as any).amount !== 0
+        const isSuccess = (detail as any).ocrStatus === 'SUCCESS'
+
+        if (isSuccess || hasStore || hasAmount) {
+          clearInterval(interval)
+          
+          const finalAmount = detail.totalAmount || (detail as any).amount || 0
+          setPendingOcrResult({
+            storeName: hasStore ? detail.storeName! : '',
+            amount: finalAmount,
+          })
+          
+          setOcrLoading(false)
+        }
+      } catch (e) {
+        console.error('OCR 결과 확인 중 오류:', e)
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(interval)
+        setOcrLoading(false)
+        alert('영수증 분석 시간이 초과되었습니다. 직접 입력해주세요.')
+      }
+    }, 3000)
+  }
+
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>, method: 'CAMERA' | 'GALLERY') => {
     const file = event.target.files?.[0]
-    if (file) {
-      console.log('Selected file:', file.name)
-      // OCR 자동화 이전의 심플한 동작: 목록으로 이동
-      navigate('/receipts')
+    if (!file) return
+
+    setOcrLoading(true)
+    setActiveInputMethod(method)
+    try {
+      const imageUrl = await uploadReceiptImage(roomNo, file)
+      const receipt = await createReceipt(roomNo, {
+        storeName: '',
+        amount: 0,
+        receiptType: 'SPLIT',
+        inputMethod: method,
+        image: imageUrl,
+        imageUrl: imageUrl,
+      })
+
+      const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
+      setCurrentReceiptId(finalReceiptId)
+      pollOcrResult(roomNo, finalReceiptId)
+
+    } catch (error) {
+      console.error('영수증 처리 실패:', error)
+      setOcrLoading(false)
+      alert('영수증 업로드에 실패했습니다.')
     }
   }
 
@@ -135,23 +209,30 @@ export function ReceiptSplitScreen() {
       return
     }
 
+    setIsSubmitting(true)
     try {
-      // roomNo는 임시로 1번 사용
-      await createReceipt(1, {
+      const payload = {
         storeName: selectedStore?.name || storeName,
+        title: selectedStore?.name || storeName,
         amount: totalAmount,
-        receiptType: 'SPLIT',
-        inputMethod: 'MANUAL',
+        receiptType: 'SPLIT' as const,
+        inputMethod: (currentReceiptId ? activeInputMethod : 'MANUAL') as any,
         address: selectedStore?.address,
-        // @ts-ignore
         centerLat: selectedStore?.lat,
-        // @ts-ignore
         centerLng: selectedStore?.lng,
-      })
+      }
+
+      if (currentReceiptId) {
+        await updateReceipt(roomNo, currentReceiptId, payload)
+      } else {
+        await createReceipt(roomNo, payload)
+      }
       navigate('/receipts')
     } catch (error) {
       console.error('영수증 등록 실패:', error)
       alert('영수증 등록에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -159,6 +240,30 @@ export function ReceiptSplitScreen() {
     setStoreName(store.name)
     setSelectedStore(store)
     setShowResults(false)
+  }
+
+  const handleConfirmOcr = () => {
+    if (!pendingOcrResult) return
+
+    if (pendingOcrResult.storeName && !storeName) {
+      setStoreName(pendingOcrResult.storeName)
+    }
+
+    const nextTotal = totalAmount + pendingOcrResult.amount
+    setTotalAmount(nextTotal)
+    setDraftTotal(String(nextTotal))
+    
+    // N분의 1 모드인 경우 분할 금액 업데이트
+    setSplits(currentSplits => {
+      const base = Math.floor(nextTotal / currentSplits.length)
+      const remainder = nextTotal - base * currentSplits.length
+      return currentSplits.map((member, index) => ({
+        ...member,
+        amount: base + (index === 0 ? remainder : 0),
+      }))
+    })
+
+    setPendingOcrResult(null)
   }
 
   return (
@@ -175,14 +280,14 @@ export function ReceiptSplitScreen() {
             accept="image/*"
             capture="environment"
             ref={cameraInputRef}
-            onChange={handlePhotoChange}
+            onChange={(e) => handlePhotoChange(e, 'CAMERA')}
             className="hidden"
           />
           <input
             type="file"
             accept="image/*"
             ref={galleryInputRef}
-            onChange={handlePhotoChange}
+            onChange={(e) => handlePhotoChange(e, 'GALLERY')}
             className="hidden"
           />
 
@@ -235,7 +340,6 @@ export function ReceiptSplitScreen() {
               />
             </div>
 
-            {/* 검색 결과 목록 */}
             {showResults && (
               <div 
                 className="absolute top-[65px] left-0 right-0 z-50 max-h-[240px] overflow-y-auto bg-white shadow-lg"
@@ -421,17 +525,74 @@ export function ReceiptSplitScreen() {
             <button
               type="button"
               onClick={handleSubmit}
+              disabled={isSubmitting || remaining !== 0 || !storeName}
               className={`flex h-[60px] w-full items-center justify-center rounded-card text-base font-bold text-white shadow-md transition-all ${
-                remaining === 0 && storeName ? 'opacity-100' : 'opacity-50'
+                remaining === 0 && storeName && !isSubmitting ? 'opacity-100' : 'opacity-50'
               }`}
               style={{ background: gradients.goldGradient }}
             >
-              등록 완료
+              {isSubmitting ? <Loader2 className="animate-spin" /> : '등록 완료'}
             </button>
           </div>
           
           <div className="h-10" />
         </section>
+
+        {/* OCR 로딩 오버레이 */}
+        {ocrLoading && (
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px]">
+            <div className="flex flex-col items-center rounded-2xl bg-white p-8 shadow-2xl">
+              <Loader2 className="animate-spin" size={40} color={colors.accent} />
+              <p className="mt-4 text-base font-bold text-text">영수증을 분석하고 있어요</p>
+              <p className="mt-1 text-sm font-medium text-sub">잠시만 기다려주세요...</p>
+            </div>
+          </div>
+        )}
+
+        {/* OCR 확인 모달 */}
+        {pendingOcrResult && (
+          <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/50 px-6 backdrop-blur-[1px]">
+            <div className="w-full rounded-[24px] bg-white p-6 shadow-2xl">
+              <div className="flex flex-col items-center">
+                <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-accentBg">
+                  <Store size={28} color={colors.accent} />
+                </div>
+                <h3 className="text-lg font-black text-text">영수증을 분석했어요!</h3>
+                <p className="mt-1 text-[13px] font-semibold text-sub">이 금액을 총액에 추가할까요?</p>
+                
+                <div className="my-6 flex w-full flex-col gap-2 rounded-2xl bg-muted p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-sub">가게명</span>
+                    <span className="text-sm font-extrabold text-text truncate max-w-[150px]">
+                      {pendingOcrResult.storeName || '알 수 없음'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-xs font-bold text-sub">금액</span>
+                    <span className="text-base font-black text-accent">
+                      +{money(pendingOcrResult.amount)}원
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex w-full gap-3">
+                  <button
+                    onClick={() => setPendingOcrResult(null)}
+                    className="h-12 flex-1 rounded-xl bg-border/30 text-[14px] font-bold text-sub"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleConfirmOcr}
+                    className="h-12 flex-[2] rounded-xl bg-accent text-[14px] font-bold text-white shadow-md active:opacity-80"
+                  >
+                    추가하기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )

@@ -32,6 +32,7 @@ export function ReceiptRegisterScreen() {
 
   // OCR 로딩 상태
   const [ocrLoading, setOcrLoading] = useState(false)
+  const [activeInputMethod, setActiveInputMethod] = useState<'CAMERA' | 'GALLERY' | 'MANUAL'>('MANUAL')
 
   // 검색 관련 상태
   const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([])
@@ -125,11 +126,12 @@ export function ReceiptRegisterScreen() {
     }, 3000)
   }
 
-  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>, method: 'CAMERA' | 'GALLERY') => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setOcrLoading(true)
+    setActiveInputMethod(method)
     try {
       // 1. S3 업로드
       const imageUrl = await uploadReceiptImage(roomNo, file)
@@ -138,7 +140,7 @@ const receipt = await createReceipt(roomNo, {
   storeName: '',
   amount: 0,
   receiptType: 'COMBINED',
-  inputMethod: 'CAMERA',
+  inputMethod: method,
   image: imageUrl,
 
   imageUrl: imageUrl,
@@ -172,7 +174,7 @@ pollOcrResult(roomNo, finalReceiptId)
         title: selectedStore?.name || storeName, // title 필드도 함께 전송
         amount: numericAmount,
         receiptType: 'COMBINED' as const,
-        inputMethod: (currentReceiptId ? 'CAMERA' : 'MANUAL') as any,
+        inputMethod: (currentReceiptId ? activeInputMethod : 'MANUAL') as any,
         address: selectedStore?.address,
         centerLat: selectedStore?.lat,
         centerLng: selectedStore?.lng,
@@ -266,14 +268,14 @@ pollOcrResult(roomNo, finalReceiptId)
               accept="image/*"
               capture="environment"
               className="hidden"
-              onChange={handlePhotoChange}
+              onChange={(e) => handlePhotoChange(e, 'CAMERA')}
             />
             <input
               ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handlePhotoChange}
+              onChange={(e) => handlePhotoChange(e, 'GALLERY')}
             />
           </section>
         ) : (
