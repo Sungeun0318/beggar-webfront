@@ -86,8 +86,9 @@ export const client = {
   get: <T>(path: string, query?: Query) => request<T>('GET', path, { query }),
   getList: <T>(path: string, query?: Query) =>
     request<T[]>('GET', path, { query }),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, { body }),
-  patch: <T>(path: string, body?: unknown) =>
-    request<T>('PATCH', path, { body }),
+  post: <T>(path: string, body?: unknown, query?: Query) =>
+    request<T>('POST', path, { body, query }),
+  patch: <T>(path: string, body?: unknown, query?: Query) =>
+    request<T>('PATCH', path, { body, query }),
   del: <T>(path: string) => request<T>('DELETE', path),
 }

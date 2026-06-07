@@ -28,6 +28,7 @@ export type BudgetResult = {
 }
 
 export type Receipt = {
+  id?: number
   date: string
   room: string
   image: string
