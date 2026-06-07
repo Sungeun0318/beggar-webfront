@@ -36,7 +36,10 @@ export function ReceiptsScreen() {
     loadReceipts()
   }, [])
 
-  const total = receiptList.reduce((sum, receipt) => sum + receipt.amount, 0)
+  const total = receiptList.reduce((sum, receipt) => {
+    const amount = receipt.amount || (receipt as any).totalAmount || 0
+    return sum + amount
+  }, 0)
 
   if (loading) {
     return (
@@ -89,17 +92,24 @@ export function ReceiptsScreen() {
           </div>
           <div className="h-6" />
           {receiptList.length > 0 ? (
-            receiptList.map((receipt, index) => (
-              <div key={`${receipt.date}-${receipt.title}-${index}`} className="mb-4">
-                <ReceiptCard
-                  date={receipt.date}
-                  room={receipt.room}
-                  image={publicReceiptImage(receipt.image)}
-                  title={receipt.title}
-                  amount={`${money(receipt.amount)}원`}
-                />
-              </div>
-            ))
+            receiptList.map((receipt, index) => {
+              const amount = receipt.amount || (receipt as any).totalAmount || 0
+              const date = receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''
+              const title = receipt.title || (receipt as any).storeName || '이름 없는 지출'
+              const imageUrl = receipt.image || (receipt as any).imageUrl || ''
+
+              return (
+                <div key={`${date}-${title}-${index}`} className="mb-4">
+                  <ReceiptCard
+                    date={date}
+                    room={receipt.room || '방 정보 없음'}
+                    image={imageUrl ? publicReceiptImage(imageUrl) : undefined}
+                    title={title}
+                    amount={`${money(amount)}원`}
+                  />
+                </div>
+              )
+            })
           ) : (
             <div className="flex h-40 flex-col items-center justify-center text-sub">
               <p className="text-sm font-semibold">지출 내역이 없어요.</p>

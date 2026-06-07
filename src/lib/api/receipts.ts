@@ -9,6 +9,7 @@ type ReceiptRequest = {
   receiptType: 'COMBINED' | 'SPLIT'
   inputMethod: 'CAMERA' | 'GALLERY' | 'MANUAL'
   image?: string
+  imageUrl?: string
   uploaderUserNo?: number
 }
 
@@ -16,24 +17,28 @@ export async function createReceipt(
   roomNo: number,
   request: ReceiptRequest,
 ): Promise<Receipt> {
-  if (MOCK.receipts) {
-    const newReceipt: Receipt = {
-      id: Math.floor(Math.random() * 10000),
-      date: new Date().toISOString().slice(0, 10).replaceAll('-', '.'),
-      room: '명학역 데이트',
-      image: request.image ?? 'assets/images/figma/receipt_food.png',
-      title: request.storeName,
-      amount: request.amount,
-    }
-    receipts.unshift(newReceipt) // 최신순으로 처음에 추가
-    return newReceipt
-  }
-
-  // 실제 경로: POST /rooms/{no}/receipts
   return client.post<Receipt>(`/rooms/${roomNo}/receipts`, {
     ...request,
-    uploaderUserNo: request.uploaderUserNo ?? 1, // TODO: 로그인 세션에서 가져와야 함
+    uploaderUserNo: request.uploaderUserNo ?? 1,
   })
+}
+
+export async function updateReceipt(
+  roomNo: number,
+  receiptId: number,
+  request: Partial<ReceiptRequest>,
+): Promise<Receipt> {
+  if (MOCK.receipts) {
+    const index = receipts.findIndex(r => r.id === receiptId)
+    if (index !== -1) {
+      receipts[index] = { ...receipts[index], title: request.storeName || receipts[index].title, amount: request.amount || receipts[index].amount }
+      return receipts[index]
+    }
+    return receipts[0]
+  }
+
+  // 실제 경로: PATCH /rooms/{no}/receipts/{id}
+  return client.patch<Receipt>(`/rooms/${roomNo}/receipts/${receiptId}`, request)
 }
 
 export async function uploadReceiptImage(
@@ -44,7 +49,6 @@ export async function uploadReceiptImage(
     return 'assets/images/figma/receipt_food.png'
   }
 
-  // 1. Presigned URL 받기 (fileName은 쿼리 파라미터로 전달)
   const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`
   const uploadUrl = await client.post<string>(
     `/rooms/${roomNo}/receipts/upload-url`,
@@ -52,7 +56,6 @@ export async function uploadReceiptImage(
     { fileName },
   )
 
-  // 2. S3에 직접 업로드
   const uploadResponse = await fetch(uploadUrl, {
     method: 'PUT',
     body: file,
@@ -65,11 +68,10 @@ export async function uploadReceiptImage(
     throw new Error('S3 업로드 실패')
   }
 
-  // 3. 업로드된 이미지의 최종 URL 반환
   return uploadUrl.split('?')[0]
 }
 
-let mockPollCount = 0 // Mock 분석 시뮬레이션을 위한 카운터
+let mockPollCount = 0
 
 export async function getReceiptDetail(
   roomNo: number,
@@ -78,13 +80,13 @@ export async function getReceiptDetail(
   if (MOCK.receipts) {
     const receipt = receipts.find(r => r.id === receiptId) || receipts[0]
     
-    // 분석 중 시뮬레이션: 3번째 호출부터 결과 반환 (약 4~6초 대기 효과)
+
     mockPollCount++
     if (mockPollCount < 3) {
       return { ...receipt, storeName: '', totalAmount: 0 }
     }
     
-    mockPollCount = 0 // 리셋
+    mockPollCount = 0
     return {
       ...receipt,
       storeName: '메가커피 명학역점',

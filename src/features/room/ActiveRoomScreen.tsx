@@ -26,7 +26,7 @@ import type { BudgetResult, Room } from '../../types'
 
 const tags = ['한식', '양식', '일식', '중식', '기타 요식업']
 
-function RoomReceiptBar() {
+function RoomReceiptBar({ roomNo }: { roomNo: number }) {
   const navigate = useNavigate()
 
   return (
@@ -34,7 +34,7 @@ function RoomReceiptBar() {
       <div className="flex h-full items-start justify-around">
         <button
           type="button"
-          onClick={() => navigate('/receipts/register')}
+          onClick={() => navigate(`/receipts/register?roomNo=${roomNo}`)}
           className="flex w-[116px] flex-col items-center pt-3 text-text"
         >
           <ReceiptText aria-hidden="true" size={26} />
@@ -42,7 +42,7 @@ function RoomReceiptBar() {
         </button>
         <button
           type="button"
-          onClick={() => navigate('/receipts/split')}
+          onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
           className="flex w-[116px] flex-col items-center pt-3 text-text"
         >
           <Scissors aria-hidden="true" size={26} />
@@ -260,7 +260,7 @@ export function ActiveRoomScreen() {
           </button>
           <div className="h-7" />
         </section>
-        <RoomReceiptBar />
+        <RoomReceiptBar roomNo={roomNo} />
       </main>
     </PhoneFrame>
   )

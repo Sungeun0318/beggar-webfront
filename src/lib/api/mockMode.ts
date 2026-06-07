@@ -6,7 +6,7 @@ export const MOCK = {
   auth: false,
   rooms: false,
   budget: false,
-  receipts: true,
+  receipts: false,
 } as const
 
 export const USE_MOCK = true

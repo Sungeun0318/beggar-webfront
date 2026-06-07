@@ -32,7 +32,6 @@ export const budgetResult: BudgetResult = {
 
 export const receipts: Receipt[] = [
   {
-    id: 101,
     date: '2024.05.18',
     room: '명학역 데이트',
     image: 'assets/images/figma/receipt_food.png',
@@ -40,7 +39,6 @@ export const receipts: Receipt[] = [
     amount: 35000,
   },
   {
-    id: 102,
     date: '2024.05.12',
     room: '전시 보러 가요',
     image: 'assets/images/figma/receipt_cafe.png',
@@ -48,7 +46,6 @@ export const receipts: Receipt[] = [
     amount: 14000,
   },
   {
-    id: 103,
     date: '2024.05.05',
     room: '주말 브런치 클럽',
     image: 'assets/images/figma/receipt_brunch.png',

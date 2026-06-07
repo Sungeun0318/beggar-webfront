@@ -1,6 +1,6 @@
 import { Camera, Edit3, Image as ImageIcon, Store, Coins, Loader2, MapPin, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ActionBox } from '../../components/ActionBox'
 import { AppHeaderTitled } from '../../components/AppHeader'
@@ -8,7 +8,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt, getReceiptDetail, uploadReceiptImage } from '../../lib/api/receipts'
+import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { LocationSearchResult } from '../../types'
@@ -17,6 +17,11 @@ type Step = 'METHOD' | 'MANUAL'
 
 export function ReceiptRegisterScreen() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const roomNo = Number(searchParams.get('roomNo')) || 1
+  
+  const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
+
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   
@@ -38,7 +43,7 @@ export function ReceiptRegisterScreen() {
   const modeDescription =
     '한 식당이나 장소에서 한 번에 결제한 영수증을 등록해요.'
 
-  // 가게 이름 입력 시 검색 (Debounce)
+  // 가게 이름 입력 시 검색
   useEffect(() => {
     if (storeName.length < 2 || (selectedStore && selectedStore.name === storeName)) {
       setSearchResults([])
@@ -75,21 +80,37 @@ export function ReceiptRegisterScreen() {
 
   const complete = () => navigate('/receipts')
 
-  // OCR 결과 폴링 함수
-  const pollOcrResult = async (roomNo: number, receiptId: any) => {
+  // OCR 결과
+  const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
+    if (!receiptId) {
+      console.error('영수증 ID가 없습니다.')
+      setOcrLoading(false)
+      alert('영수증 생성에 실패했습니다. 직접 입력해주세요.')
+      setStep('MANUAL')
+      return
+    }
+
     let attempts = 0
-    const maxAttempts = 15 // 최대 30초 대기
+    const maxAttempts = 30
 
     const interval = setInterval(async () => {
       attempts++
       try {
-        const detail = await getReceiptDetail(roomNo, receiptId)
-        if (detail.storeName || detail.totalAmount) {
+        const detail = await getReceiptDetail(targetRoomNo, receiptId)
+        // 분석 완료 조건 완화: SUCCESS 상태이거나, 실제 데이터(가게명 또는 금액)가 들어왔을 때
+        const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''
+        const hasAmount = (detail.totalAmount && detail.totalAmount !== 0) || (detail as any).amount !== 0
+        const isSuccess = (detail as any).ocrStatus === 'SUCCESS'
+
+        if (isSuccess || hasStore || hasAmount) {
           clearInterval(interval)
-          setStoreName(detail.storeName || '')
-          setAmount(detail.totalAmount ? String(detail.totalAmount) : '')
+          
+          setStoreName(hasStore ? detail.storeName! : '')
+          const finalAmount = detail.totalAmount || (detail as any).amount || ''
+          setAmount(finalAmount ? String(finalAmount) : '')
+          
           setOcrLoading(false)
-          setStep('MANUAL') // 입력 폼으로 이동하여 결과 확인
+          setStep('MANUAL')
         }
       } catch (e) {
         console.error('OCR 결과 확인 중 오류:', e)
@@ -101,7 +122,7 @@ export function ReceiptRegisterScreen() {
         alert('영수증 분석 시간이 초과되었습니다. 직접 입력해주세요.')
         setStep('MANUAL')
       }
-    }, 2000)
+    }, 3000)
   }
 
   const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,23 +132,26 @@ export function ReceiptRegisterScreen() {
     setOcrLoading(true)
     try {
       // 1. S3 업로드
-      const imageUrl = await uploadReceiptImage(1, file)
+      const imageUrl = await uploadReceiptImage(roomNo, file)
+// 2. OCR 트리거를 위한 영수증 생성
+const receipt = await createReceipt(roomNo, {
+  storeName: '',
+  amount: 0,
+  receiptType: 'COMBINED',
+  inputMethod: 'CAMERA',
+  image: imageUrl,
 
-      // 2. OCR 트리거를 위한 영수증 생성
-      const receipt = await createReceipt(1, {
-        storeName: '분석 중...',
-        amount: 0,
-        receiptType: 'COMBINED',
-        inputMethod: 'CAMERA',
-        image: imageUrl,
-      })
+  imageUrl: imageUrl,
+})
 
-      // 3. 결과 폴링
-      // @ts-ignore
-      pollOcrResult(1, receipt.id || receipt.no)
+// 3. 결과 폴링
+const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
+setCurrentReceiptId(finalReceiptId)
+pollOcrResult(roomNo, finalReceiptId)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('영수증 처리 실패:', error)
+      if (error.data) console.error('상세 에러 내용:', error.data)
       setOcrLoading(false)
       alert('영수증 업로드에 실패했습니다.')
     }
@@ -141,20 +165,25 @@ export function ReceiptRegisterScreen() {
 
     setIsSubmitting(true)
     try {
-      // roomNo는 임시로 1번 사용
       const numericAmount = parseInt(amount.replace(/\D/g, ''), 10)
       
-      await createReceipt(1, {
+      const payload = {
         storeName: selectedStore?.name || storeName,
+        title: selectedStore?.name || storeName, // title 필드도 함께 전송
         amount: numericAmount,
-        receiptType: 'COMBINED',
-        inputMethod: 'MANUAL',
+        receiptType: 'COMBINED' as const,
+        inputMethod: (currentReceiptId ? 'CAMERA' : 'MANUAL') as any,
         address: selectedStore?.address,
-        // @ts-ignore
         centerLat: selectedStore?.lat,
-        // @ts-ignore
         centerLng: selectedStore?.lng,
-      })
+      }
+
+      if (currentReceiptId) {
+        // 이미 생성된 영수증이 있으면 업데이트 (PATCH)
+        await updateReceipt(roomNo, currentReceiptId, payload)
+      } else {
+        await createReceipt(roomNo, payload)
+      }
       complete()
     } catch (error) {
       console.error('영수증 등록 실패:', error)
