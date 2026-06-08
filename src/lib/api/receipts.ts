@@ -113,3 +113,19 @@ export async function getMyReceipts(): Promise<Receipt[]> {
   // 실제 경로: GET /users/me/receipts
   return client.getList<Receipt>('/users/me/receipts')
 }
+
+export async function deleteReceipt(
+  roomNo: number,
+  receiptId: number,
+): Promise<void> {
+  if (MOCK.receipts) {
+    const index = receipts.findIndex(r => r.id === receiptId)
+    if (index !== -1) {
+      receipts.splice(index, 1)
+    }
+    return
+  }
+
+  // 실제 경로: DELETE /rooms/{no}/receipts/{id}
+  return client.del(`/rooms/${roomNo}/receipts/${receiptId}`)
+}

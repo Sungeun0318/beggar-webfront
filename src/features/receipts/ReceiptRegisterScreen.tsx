@@ -8,7 +8,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
+import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt, deleteReceipt } from '../../lib/api/receipts'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { LocationSearchResult } from '../../types'
@@ -100,7 +100,6 @@ export function ReceiptRegisterScreen() {
       attempts++
       try {
         const detail = await getReceiptDetail(targetRoomNo, receiptId)
-        console.log(`[OCR 폴링 ${attempts}/${maxAttempts}]`, detail)
         
         // 분석 완료 조건 완화: SUCCESS 상태이거나, 실제 데이터(가게명 또는 금액)가 들어왔을 때
         const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''
