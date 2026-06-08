@@ -347,9 +347,11 @@ export function ActiveRoomScreen() {
                   onClick={openRecommendation}
                   className="flex h-[118px] w-full items-center rounded-card border border-border bg-accentBg p-3.5 text-left"
                 >
-                  <div className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full bg-white">
-                    <ReceiptText aria-hidden="true" size={28} color={colors.accent} />
-                  </div>
+                  <img
+                    src={place.thumbnailUrl}
+                    alt=""
+                    className="h-[58px] w-[58px] shrink-0 rounded-compact object-cover"
+                  />
                   <div className="w-[13px]" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-black text-accent">
