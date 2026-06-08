@@ -103,8 +103,7 @@ export function ActiveRoomScreen() {
   }, [roomNo])
 
   useEffect(() => {
-    const targetRoom = room || mockRoom
-    if (!targetRoom) {
+    if (!room) {
       return
     }
 
@@ -112,7 +111,7 @@ export function ActiveRoomScreen() {
     setRecommendationError(null)
     getRecommendation(roomNo, {
       tag: selectedTag,
-      region: targetRoom.location,
+      region: room.location,
     })
       .then((result) => {
         setRecommendedPlaces(result.places.slice(0, 3))
