@@ -6,6 +6,7 @@ import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { softBox } from '../../components/ui/softBox'
 import { getChats, sendChat } from '../../lib/api/community'
+import { wsClient } from '../../lib/websocket'
 import { colors, radii } from '../../theme/tokens'
 import type { RoomFreeChat } from '../../types'
 
@@ -52,25 +53,33 @@ export function CommunityChatScreen() {
   const [chats, setChats] = useState<RoomFreeChat[]>([])
 
   useEffect(() => {
+    // 기존 채팅 내역 로드
     void getChats().then(setChats)
+
+    // WebSocket 연결 및 구독
+    wsClient.connect().then(() => {
+      wsClient.subscribe('/sub/chats', (msg) => {
+        const receivedChat: RoomFreeChat = JSON.parse(msg.body)
+        setChats((prev) => {
+          // 중복 방지 (본인이 보낸 것이 이미 로컬에 추가되었을 경우 등 대비)
+          if (prev.some(c => c.id === receivedChat.id)) return prev
+          return [...prev, receivedChat]
+        })
+      })
+    })
+
+    return () => {
+      wsClient.disconnect()
+    }
   }, [])
 
   const handleSend = () => {
     const nextMessage = message.trim()
     if (!nextMessage) return
 
-    // TODO: STEP 9에서 WebSocket 실시간 전송으로 교체한다.
-    void sendChat(nextMessage)
-    setChats((prev) => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        sender: '거지판다',
-        message: nextMessage,
-        createdAt: '방금 전',
-        isMine: true,
-      },
-    ])
+    // WebSocket을 통해 메시지 전송
+    wsClient.publish('/pub/chats', { content: nextMessage })
+    
     setMessage('')
   }
 
