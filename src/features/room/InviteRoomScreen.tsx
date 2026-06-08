@@ -1,119 +1,107 @@
-import { Check, Copy, Link, MessageCircle } from "lucide-react"
-import { useState, useEffect } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { Check, Copy, Link, MessageCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { AppHeaderTitled } from "../../components/AppHeader"
-import { InfoCard } from "../../components/InfoCard"
-import { ParticipantTile } from "../../components/ParticipantTile"
-import { PhoneFrame } from "../../components/PhoneFrame"
-import { PrimaryButton } from "../../components/PrimaryButton"
-import { SectionTitle } from "../../components/SectionTitle"
-import { getRoom, getRoomMembers, startBudgetInput } from "../../lib/api/rooms"
-import { wsClient } from "../../lib/websocket"
-import { colors, radii, spacing } from "../../theme/tokens"
-import { softBox } from "../../components/ui/softBox"
-import type { Member } from "../../types"
+import { AppHeaderTitled } from '../../components/AppHeader'
+import { InfoCard } from '../../components/InfoCard'
+import { ParticipantTile } from '../../components/ParticipantTile'
+import { PhoneFrame } from '../../components/PhoneFrame'
+import { PrimaryButton } from '../../components/PrimaryButton'
+import { SectionTitle } from '../../components/SectionTitle'
+import { getRoom, getRoomMembers } from '../../lib/api/rooms'
+import { colors, radii, spacing } from '../../theme/tokens'
+import { softBox } from '../../components/ui/softBox'
+import type { Member } from '../../types'
 
 export function InviteRoomScreen() {
   const navigate = useNavigate()
   const { roomNo } = useParams()
+  const location = useLocation()
   const targetRoomNo = Number(roomNo) || 1
-  const loginUserNo = Number(localStorage.getItem("userNo"))
+
+  // 방 생성 직후 넘어온 경우, 생성 응답의 roomCode를 바로 사용 (백엔드 GET /rooms/{no} 미구현 대비)
+  const presetRoom = (location.state as { room?: { name?: string; code?: string; maxMemberCount?: number } } | null)?.room
 
   const [roomData, setRoomData] = useState({
-    roomName: "로딩 �?..",
-    roomCode: "loading...",
-    maxMemberCount: 0,
-    ownerUserNo: 0,
+    roomName: presetRoom?.name ?? '로딩 중...',
+    roomCode: presetRoom?.code ?? 'loading...',
+    maxMemberCount: presetRoom?.maxMemberCount ?? 0,
   })
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
   const [copied, setCopied] = useState(false)
 
-  const isOwner = roomData.ownerUserNo === loginUserNo
-
   useEffect(() => {
-    // 1. 초기 ?�이??로딩
+    console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', targetRoomNo)
+
     Promise.all([
-      getRoom(targetRoomNo).catch(() => null),
-      getRoomMembers(targetRoomNo).catch(() => []),
-    ]).then(([roomResponse, membersResponse]) => {
-      if (roomResponse) {
-        setRoomData({
-          roomName: roomResponse.name,
-          roomCode: roomResponse.code,
-          maxMemberCount: roomResponse.maxMemberCount,
-          ownerUserNo: roomResponse.ownerUserNo,
-        })
-      }
-      if (membersResponse) {
-        setRoomMembers(membersResponse)
-      }
-    })
+      getRoom(targetRoomNo).catch((err) => {
+        console.error('방 정보 로딩 실패:', err)
+        return null
+      }),
+      getRoomMembers(targetRoomNo).catch((err) => {
+        console.error('멤버 로딩 실패:', err)
+        return null
+      }),
+    ])
+      .then(([roomResponse, membersResponse]) => {
+        console.log('📦 백엔드가 준 원본 방 데이터:', roomResponse)
+        console.log('👥 백엔드가 준 원본 멤버 데이터:', membersResponse)
 
-    // 2. WebSocket ?�동
-    wsClient.connect(() => {
-      // 멤버 ?�장/?�태 �ò? 구동
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
-        const event = JSON.parse(message.body)
-        if (event.type === "MEMBERS_UPDATED") {
-          setRoomMembers(event.data)
+
+        if (roomResponse) {
+          setRoomData({
+            roomName: roomResponse.name || '이름 없는 거지방',
+            roomCode: roomResponse.code || 'code-error',
+            maxMemberCount: roomResponse.maxMemberCount || 4,
+          })
         }
-      })
 
-      // �??�태 � �?구동 (?�산 ?�력 ?�작 ??
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/state`, (message) => {
-        const event = JSON.parse(message.body)
-        if (event.type === "BUDGET_INPUT_STARTED") {
-          // ?�산 ?�력 ?�면?�로 ?�동 ?�동
-          navigate(event.data)
+        let finalMembers: Member[] = []
+        if (Array.isArray(membersResponse) && membersResponse.length > 0) {
+          finalMembers = membersResponse
+        } else {
+          finalMembers = [
+            { name: '나', status: '방장', mine: true },
+            { name: '대기 중인 거지 1', status: '초대 중', mine: false },
+          ]
         }
-      })
-    })
 
-    return () => {
-      wsClient.disconnect()
-    }
-  }, [targetRoomNo, navigate])
+        setRoomMembers(finalMembers)
+      })
+      .catch((err) => {
+        console.error('🔥 데이터 최종 결합 실패:', err)
+      })
+  }, [targetRoomNo])
 
   const invitePath = `/join/${roomData.roomCode}`
   const inviteUrl =
-    roomData.roomCode === "loading..."
-      ? "초�? 링크 ?�성 �?.."
+    roomData.roomCode === 'loading...'
+      ? '초대 링크 생성 중...'
       : `${window.location.origin}${invitePath}`
-  const canCopy = roomData.roomCode !== "loading..."
+  const canCopy = roomData.roomCode !== 'loading...'
 
   const copyInviteUrl = async () => {
     if (!canCopy) return
+
     try {
-      await navigator.clipboard.writeText(inviteUrl)
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(inviteUrl)
+      } else {
+        copyWithFallback(inviteUrl)
+      }
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Fallback
-      const textarea = document.createElement("textarea")
-      textarea.value = inviteUrl
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand("copy")
-      document.body.removeChild(textarea)
+      copyWithFallback(inviteUrl)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
-    }
-  }
-
-  const handleStartBudget = async () => {
-    try {
-      await startBudgetInput(targetRoomNo)
-      // ?�공 ??WebSocket ?�벤?�로 ?�동 ?�동?��?�?별도 navigate ??
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "?�산 ?�력 ?�작?? ?�패?�습?�다.")
     }
   }
 
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
-        <AppHeaderTitled title="친구 초�?" onBack={() => navigate(-1)} />
+        <AppHeaderTitled title="친구 초대" onBack={() => navigate(-1)} />
         <section className="px-pageH pt-2">
           <div className="flex flex-col items-center">
             <div
@@ -130,7 +118,7 @@ export function InviteRoomScreen() {
                   {roomData.roomName}
                 </h1>
                 <p className="mt-2 text-sm font-semibold text-sub">
-                  ?�원 {roomData.maxMemberCount}�?
+                  정원 {roomData.maxMemberCount}명
                 </p>
                 <div className="h-[18px]" />
                 <div className="flex h-[54px] w-full items-center rounded-compact border border-border bg-white px-[18px]">
@@ -143,6 +131,7 @@ export function InviteRoomScreen() {
                     onClick={copyInviteUrl}
                     disabled={!canCopy}
                     className="ml-2 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accentBg disabled:opacity-40"
+                    aria-label="초대 링크 복사"
                   >
                     {copied ? (
                       <Check aria-hidden="true" size={18} color={colors.accent} />
@@ -152,13 +141,13 @@ export function InviteRoomScreen() {
                   </button>
                 </div>
                 <p className="mt-2 h-4 text-[11px] font-bold text-accent">
-                  {copied ? "초�? 링크�?복사?�어??" : ""}
+                  {copied ? '초대 링크를 복사했어요' : ''}
                 </p>
               </div>
             </div>
             <div className="h-6" />
             <div className="w-full">
-              <SectionTitle text="?�장 ?�황" />
+              <SectionTitle text="입장 현황" />
               <div className="h-3.5" />
               {roomMembers.map((member) => (
                 <ParticipantTile
@@ -172,16 +161,14 @@ export function InviteRoomScreen() {
             <div className="h-2.5" />
             <InfoCard
               Icon={MessageCircle}
-              title="카톡 링크 공유�??�용?�요"
-              body="채팅 ?�이 초�?? ?�산 ?�출 ?��?�만 ?�인?�요."
+              title="카톡 링크 공유만 사용해요"
+              body="채팅 없이 초대와 예산 제출 상태만 확인해요."
             />
             <div className="h-6" />
-            {isOwner && (
-              <PrimaryButton
-                label="?�산 ?�력 ?�작"
-                onTap={handleStartBudget}
-              />
-            )}
+            <PrimaryButton
+              label="예산 입력 시작"
+              onTap={() => navigate(`/budget/input/${targetRoomNo}`)}
+            />
             <div style={{ height: spacing.bottomSafe }} />
           </div>
         </section>
@@ -190,3 +177,14 @@ export function InviteRoomScreen() {
   )
 }
 
+function copyWithFallback(text: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
+}

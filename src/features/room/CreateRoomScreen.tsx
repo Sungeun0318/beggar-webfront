@@ -208,7 +208,7 @@ export function CreateRoomScreen() {
               createRoom(requestBody)
                 .then((newRoom) => {
                   console.log('🎯 백엔드가 방 생성 후 돌려준 데이터:', newRoom)
-                  navigate(`/room/invite/${newRoom.no}`)
+                  navigate(`/room/invite/${newRoom.no}`, { state: { room: newRoom } })
                 })
                 .catch((err) => {
                   console.error('🔥 방 생성 중 오류:', err)
