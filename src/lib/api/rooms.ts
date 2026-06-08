@@ -58,6 +58,14 @@ export async function getMyRooms(): Promise<Room[]> {
   return findMyRooms()
 }
 
+export async function closeRoom(no: number): Promise<void> {
+  if (MOCK.rooms) {
+    return
+  }
+  // 실제 경로: POST /rooms/{no}/close
+  await client.post(`/rooms/${no}/close`, {})
+}
+
 export async function createRoom(request: CreateRoomRequest): Promise<Room> {
   if (MOCK.rooms) {
     return { ...room, ...request, no: 1 } as any
@@ -98,6 +106,7 @@ export async function getRoom(no: number): Promise<Room> {
       maxMemberCount: data.maxMemberCount || 4,
       memberCount: data.memberCount || data.mvemberCount || 1,
       tags: data.tags || [],
+      status: data.roomStatus || data.status || '진행 중',
     } as any
 
   } catch (error) {

@@ -40,6 +40,15 @@ export function ReceiptRegisterScreen() {
   const [selectedStore, setSelectedStore] = useState<LocationSearchResult | null>(null)
   const [showResults, setShowResults] = useState(false)
 
+  useEffect(() => {
+    getRoom(roomNo).then((data) => {
+      if (data.status === 'ENDED') {
+        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+        navigate(-1)
+      }
+    })
+  }, [roomNo, navigate])
+
   const modeTitle = '통합 영수증'
   const modeDescription =
     '한 식당이나 장소에서 한 번에 결제한 영수증을 등록해요.'

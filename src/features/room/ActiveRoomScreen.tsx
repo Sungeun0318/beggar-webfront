@@ -18,7 +18,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { SummaryRow } from '../../components/SummaryRow'
 import { getBudgetResult } from '../../lib/api/budget'
 import { getRecommendation } from '../../lib/api/recommendation'
-import { getRoom } from '../../lib/api/rooms'
+import { getRoom, closeRoom } from '../../lib/api/rooms'
 import { money } from '../../lib/format'
 import { receipts, room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
@@ -143,6 +143,29 @@ export function ActiveRoomScreen() {
   const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
   const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
 
+  const userNo = Number(localStorage.getItem('userNo'))
+  const isOwner = userNo === displayRoom.ownerNo
+
+  const handleCloseRoom = async () => {
+    if (!window.confirm('정말로 방을 종료하시겠습니까?\n종료 후에는 영수증 등록 및 추천 서비스를 이용할 수 없습니다.')) {
+      return
+    }
+
+    try {
+      await closeRoom(roomNo)
+      alert('방이 성공적으로 종료되었습니다.')
+      // 상태 업데이트를 위해 방 정보를 다시 불러옴
+      const updatedRoom = await getRoom(roomNo)
+      setRoom(updatedRoom)
+    } catch (error: any) {
+      if (error.response?.data?.code === 'ROOM_ALREADY_ENDED') {
+        alert('이미 종료된 방입니다.')
+      } else {
+        alert('방 종료 중 오류가 발생했습니다.')
+      }
+    }
+  }
+
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
@@ -159,7 +182,10 @@ export function ActiveRoomScreen() {
               className="text-center text-[21px] font-black text-text"
               style={{ letterSpacing: -0.7 }}
             >
-              {displayRoom.name}
+              {displayRoom.name}{' '}
+              {displayRoom.status === 'ENDED' && (
+                <span className="text-sm font-bold text-danger">(종료됨)</span>
+              )}
             </h1>
             <button
               type="button"
@@ -199,7 +225,9 @@ export function ActiveRoomScreen() {
               className="text-base font-medium text-text"
               style={{ letterSpacing: -0.71 }}
             >
-              오늘의 예산을 바탕으로 추천해보겠습니다.
+              {displayRoom.status === 'ENDED'
+                ? '종료된 방은 추천을 받을 수 없습니다.'
+                : '오늘의 예산을 바탕으로 추천해보겠습니다.'}
             </span>
           </div>
           <div className="h-1" />
@@ -265,7 +293,9 @@ export function ActiveRoomScreen() {
               className="mt-1 text-[13px] font-semibold leading-[1.45] text-sub"
               style={{ letterSpacing: -0.23 }}
             >
-              태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.
+              {displayRoom.status === 'ENDED'
+                ? '종료된 방은 새로운 추천을 받을 수 없어요.'
+                : '태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.'}
             </p>
             <div className="h-4" />
             <div className="flex flex-wrap gap-2">
@@ -347,16 +377,23 @@ export function ActiveRoomScreen() {
             </div>
           </section>
           <div className="h-5" />
-          <button
-            type="button"
-            className="h-[52px] w-full rounded-compact border border-border bg-white text-sm font-bold text-sub"
-            onClick={() => undefined}
-          >
-            오늘 방 종료하기
-          </button>
+          {isOwner && displayRoom.status !== 'ENDED' && (
+            <button
+              type="button"
+              className="h-[52px] w-full rounded-compact border border-border bg-white text-sm font-bold text-sub"
+              onClick={handleCloseRoom}
+            >
+              오늘 방 종료하기
+            </button>
+          )}
+          {displayRoom.status === 'ENDED' && (
+            <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-gray-100 text-sm font-bold text-gray-400">
+              종료된 방입니다
+            </div>
+          )}
           <div className="h-7" />
         </section>
-        <RoomReceiptBar roomNo={roomNo} />
+        {displayRoom.status !== 'ENDED' && <RoomReceiptBar roomNo={roomNo} />}
       </main>
     </PhoneFrame>
   )

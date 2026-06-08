@@ -61,6 +61,11 @@ export function RecommendationScreen() {
     setRecommendationError(null)
     getRoom(roomNo)
       .then((roomData) => {
+        if (roomData.status === 'ENDED') {
+          alert('종료된 방은 추천을 받을 수 없습니다.')
+          navigate(-1)
+          return
+        }
         setRoom(roomData)
         setSelectedTag(roomData.tags[0] || "")
         setSelectedRegion(roomData.location || "")
