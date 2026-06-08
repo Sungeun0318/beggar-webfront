@@ -21,16 +21,11 @@ export async function getRecommendation(
   const token = localStorage.getItem('accessToken')
 
   // 실제 경로: GET /rooms/{no}/recommend?tag=&region=&lat=&lng=&radius=
-  try {
-    return await client.get<RecommendationResult>(
-      `/rooms/${roomNo}/recommend`,
-      params,
-      { Authorization: `Bearer ${token}` },
-    )
-  } catch (error) {
-    console.warn('추천 API 실패 - mock 대체', error)
-    return mockRecommendation(roomNo, params)
-  }
+  return client.get<RecommendationResult>(
+    `/rooms/${roomNo}/recommend`,
+    params,
+    { Authorization: `Bearer ${token}` },
+  )
 }
 
 function mockRecommendation(
