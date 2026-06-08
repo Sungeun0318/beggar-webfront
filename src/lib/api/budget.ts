@@ -14,8 +14,6 @@ export async function submitBudget(roomNo: number, amount: number): Promise<void
     return
   }
 
-  const token = localStorage.getItem('accessToken')
-
   // 실제 경로: POST /rooms/{no}/budget
   await client.post(
     `/rooms/${roomNo}/budget`,
@@ -28,13 +26,10 @@ export async function confirmBudget(roomNo: number): Promise<void> {
     return
   }
 
-  const token = localStorage.getItem('accessToken')
-
   // 실제 경로: POST /rooms/{no}/budget/confirm
   await client.post(
     `/rooms/${roomNo}/budget/confirm`,
     {},
-    { Authorization: `Bearer ${token}` },
   )
 }
 

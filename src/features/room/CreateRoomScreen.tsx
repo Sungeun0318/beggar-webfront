@@ -209,13 +209,21 @@ export function CreateRoomScreen() {
                 .then((newRoom) => {
                   console.log('🎯 백엔드가 방 생성 후 돌려준 데이터:', newRoom)
                   
-                  // ✅ 방 생성 성공 시 로컬스토리지에 즉시 저장하여 동기화합니다.
-                  localStorage.setItem('recentRoomNo', (newRoom.no || newRoom.roomNo).toString())
-                  localStorage.setItem('recentRoomName', newRoom.name || newRoom.roomName)
-                  localStorage.setItem('recentRoomCode', newRoom.code || newRoom.roomCode)
-                  localStorage.setItem('recentMaxMember', (newRoom.maxMemberCount || maxMemberCount).toString())
+                  const createdRoomNo = newRoom.no ?? newRoom.roomNo
+                  const createdRoomName = newRoom.name ?? newRoom.roomName ?? roomName
+                  const createdRoomCode = newRoom.code ?? newRoom.roomCode ?? ''
 
-                  navigate(`/room/invite/${newRoom.no}`, { state: { room: newRoom } })
+                  if (!createdRoomNo) {
+                    throw new Error('생성된 방 번호를 확인할 수 없습니다.')
+                  }
+
+                  // ✅ 방 생성 성공 시 로컬스토리지에 즉시 저장하여 동기화합니다.
+                  localStorage.setItem('recentRoomNo', String(createdRoomNo))
+                  localStorage.setItem('recentRoomName', createdRoomName)
+                  localStorage.setItem('recentRoomCode', createdRoomCode)
+                  localStorage.setItem('recentMaxMember', String(newRoom.maxMemberCount || maxMemberCount))
+
+                  navigate(`/room/invite/${createdRoomNo}`, { state: { room: newRoom } })
                 })
                 .catch((err) => {
                   console.error('🔥 방 생성 중 오류:', err)

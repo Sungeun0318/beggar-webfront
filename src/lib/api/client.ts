@@ -61,10 +61,20 @@ async function request<T>(
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+  
   const contentType = response.headers.get('content-type') ?? ''
-  const data = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text()
+  let data: any
+
+  const text = await response.text()
+  if (contentType.includes('application/json')) {
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      data = text
+    }
+  } else {
+    data = text
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -73,6 +83,7 @@ async function request<T>(
     }
 
     // 401 리다이렉트는 인증 화면 연동 단계에서 처리한다.
+    console.error(`API Error (${response.status} ${method} ${path}):`, data)
     const message =
       typeof data === 'object' && data !== null && 'message' in data
         ? String((data as { message?: unknown }).message)
@@ -88,10 +99,18 @@ export const client = {
     request<T>('GET', path, { query, headers }),
   getList: <T>(path: string, query?: Query, headers?: Record<string, string>) =>
     request<T[]>('GET', path, { query, headers }),
-  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
-    request<T>('POST', path, { body, headers }),
-  patch: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
-    request<T>('PATCH', path, { body, headers }),
+  post: <T>(
+    path: string,
+    body?: unknown,
+    query?: Query,
+    headers?: Record<string, string>,
+  ) => request<T>('POST', path, { body, query, headers }),
+  patch: <T>(
+    path: string,
+    body?: unknown,
+    query?: Query,
+    headers?: Record<string, string>,
+  ) => request<T>('PATCH', path, { body, query, headers }),
   del: <T>(path: string, headers?: Record<string, string>) =>
     request<T>('DELETE', path, { headers }),
 }
