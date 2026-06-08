@@ -1,4 +1,4 @@
-import { ChevronDown, ReceiptText, Loader2 } from 'lucide-react'
+import { ChevronDown, ReceiptText, Loader2, X, MapPin } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -20,6 +20,7 @@ export function ReceiptsScreen() {
   const navigate = useNavigate()
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
 
   useEffect(() => {
     async function loadReceipts() {
@@ -53,13 +54,13 @@ export function ReceiptsScreen() {
 
   return (
     <PhoneFrame>
-      <main className="relative min-h-[852px] bg-bg">
+      <main className="relative min-h-[852px] bg-bg overflow-hidden">
         <AppHeaderBrand
           title="지출 내역"
           onBack={() => navigate(-1)}
           showNotification
         />
-        <section className="px-pageH pt-2">
+        <section className="px-pageH pt-2 h-[calc(100%-60px)] overflow-y-auto">
           <div className="flex items-center">
             <h1
               className="text-xl font-semibold text-text"
@@ -106,6 +107,7 @@ export function ReceiptsScreen() {
                     image={imageUrl ? publicReceiptImage(imageUrl) : undefined}
                     title={title}
                     amount={`${money(amount)}원`}
+                    onClick={() => setSelectedReceipt(receipt)}
                   />
                 </div>
               )
@@ -117,6 +119,89 @@ export function ReceiptsScreen() {
           )}
           <div style={{ height: spacing.bottomSafe }} />
         </section>
+
+        {/* 상세 정보 모달 */}
+        {selectedReceipt && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div 
+              className="w-full max-w-[400px] bg-white rounded-[24px] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+              style={{ maxHeight: '90vh' }}
+            >
+              <div className="flex justify-between items-center mb-4 shrink-0">
+                <h2 className="text-xl font-black text-text">영수증 상세</h2>
+                <button 
+                  onClick={() => setSelectedReceipt(null)}
+                  className="p-2 rounded-full bg-muted active:bg-border/50 -mr-2"
+                >
+                  <X size={20} color={colors.sub} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar pb-2">
+                {/* 영수증 이미지 */}
+                {(selectedReceipt.image || (selectedReceipt as any).imageUrl) && (
+                  <div className="w-full h-72 rounded-2xl bg-gray-100 border border-border mb-6 flex items-center justify-center p-2">
+                    <img 
+                      src={publicReceiptImage(selectedReceipt.image || (selectedReceipt as any).imageUrl)} 
+                      alt="영수증" 
+                      className="max-w-full max-h-full object-contain drop-shadow-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center pb-4 border-b border-border">
+                    <span className="text-[15px] font-bold text-sub">가게명</span>
+                    <span className="text-[17px] font-extrabold text-text">
+                      {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없음'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center pb-4 border-b border-border">
+                    <span className="text-[15px] font-bold text-sub">결제 일시</span>
+                    <span className="text-[15px] font-bold text-text">
+                      {selectedReceipt.date || (selectedReceipt as any).createdAt?.slice(0, 16).replace('T', ' ')}
+                    </span>
+                  </div>
+
+                  {((selectedReceipt as any).address) && (
+                    <div className="flex justify-between items-center pb-4 border-b border-border">
+                      <span className="text-[15px] font-bold text-sub">위치</span>
+                      <div className="flex items-center gap-1">
+                        <MapPin size={14} color={colors.accent} />
+                        <span className="text-[15px] font-bold text-text truncate max-w-[200px]">
+                          {(selectedReceipt as any).address}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center pb-4 border-b border-border">
+                    <span className="text-[15px] font-bold text-sub">총 결제 금액</span>
+                    <span className="text-[20px] font-black text-danger">
+                      {money(selectedReceipt.amount || (selectedReceipt as any).totalAmount || 0)}원
+                    </span>
+                  </div>
+
+                  {/* 분할 내역이 있는 경우 표시 */}
+                  {(selectedReceipt as any).splits && (selectedReceipt as any).splits.length > 0 && (
+                    <div className="pt-2">
+                      <span className="text-[15px] font-bold text-sub mb-3 block">분할 내역 (N분의 1)</span>
+                      <div className="bg-muted rounded-xl p-4 space-y-2">
+                        {(selectedReceipt as any).splits.map((split: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-text">참여자 {split.roomMemberId}</span>
+                            <span className="text-sm font-bold text-text">{money(split.amount)}원</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )
