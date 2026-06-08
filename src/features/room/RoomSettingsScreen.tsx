@@ -22,7 +22,6 @@ import { PrimaryButton } from '../../components/PrimaryButton'
 import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
 import { getRoom, updateRoomSettings } from '../../lib/api/rooms'
-import { currentUser } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Room } from '../../types'
@@ -91,7 +90,8 @@ export function RoomSettingsScreen() {
     )
   }
 
-  const isOwner = currentUser.no === room.ownerNo
+  const userNo = Number(localStorage.getItem('userNo'))
+  const isOwner = userNo === room.ownerNo
 
   const changeMaxMemberCount = (delta: number) => {
     setMaxMemberCount((current) =>
@@ -102,6 +102,8 @@ export function RoomSettingsScreen() {
   const handleSave = async () => {
     try {
       await updateRoomSettings(roomNo, {
+        name: room.name,
+        location: room.location,
         maxMemberCount,
         tags: [selectedTag],
       })
