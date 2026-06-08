@@ -136,8 +136,8 @@ export function BudgetResultScreen() {
           <InfoCard Icon={Lock} title="개인 예산은 익명으로 보호돼요" />
           <div className="h-6" />
           <PrimaryButton
-            label="추천 보기"
-            onTap={() => navigate(`/recommend?roomNo=${roomNo}`)}
+            label="거지방 입장하기"
+            onTap={() => navigate(`/room/${roomNo}`)}
           />
           <div className="h-3" />
           <button
