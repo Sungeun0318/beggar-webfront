@@ -79,9 +79,12 @@ export function ActiveRoomScreen() {
   const [budget, setBudget] = useState<BudgetResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
-  const [recommendedPlaces, setRecommendedPlaces] = useState<RecommendedPlace[]>([])
-  const [recommendationLoading, setRecommendationLoading] = useState(false)
-  const [recommendationError, setRecommendationError] = useState<string | null>(null)
+  const [initialRecommendedPlaces, setInitialRecommendedPlaces] = useState<RecommendedPlace[]>([])
+  const [courseRecommendedPlaces, setCourseRecommendedPlaces] = useState<RecommendedPlace[]>([])
+  const [initialRecommendationLoading, setInitialRecommendationLoading] = useState(false)
+  const [courseRecommendationLoading, setCourseRecommendationLoading] = useState(false)
+  const [initialRecommendationError, setInitialRecommendationError] = useState<string | null>(null)
+  const [courseRecommendationError, setCourseRecommendationError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -103,26 +106,48 @@ export function ActiveRoomScreen() {
   }, [roomNo])
 
   useEffect(() => {
-    const targetRoom = room || mockRoom
-    if (!targetRoom) {
+    if (!room) {
       return
     }
 
-    setRecommendationLoading(true)
-    setRecommendationError(null)
+    const firstTag = room.tags[0] || fallbackTags[0]
+    setInitialRecommendationLoading(true)
+    setInitialRecommendationError(null)
     getRecommendation(roomNo, {
-      tag: selectedTag,
-      region: targetRoom.location,
+      tag: firstTag,
+      region: room.location,
     })
       .then((result) => {
-        setRecommendedPlaces(result.places.slice(0, 3))
+        setInitialRecommendedPlaces(result.places.slice(0, 3))
       })
       .catch((error) => {
-        console.error('Failed to fetch recommendations:', error)
-        setRecommendedPlaces([])
-        setRecommendationError('추천을 불러오지 못했어요.')
+        console.error('Failed to fetch initial recommendations:', error)
+        setInitialRecommendedPlaces([])
+        setInitialRecommendationError('추천을 불러오지 못했어요.')
       })
-      .finally(() => setRecommendationLoading(false))
+      .finally(() => setInitialRecommendationLoading(false))
+  }, [room, roomNo])
+
+  useEffect(() => {
+    if (!room) {
+      return
+    }
+
+    setCourseRecommendationLoading(true)
+    setCourseRecommendationError(null)
+    getRecommendation(roomNo, {
+      tag: selectedTag,
+      region: room.location,
+    })
+      .then((result) => {
+        setCourseRecommendedPlaces(result.places.slice(0, 3))
+      })
+      .catch((error) => {
+        console.error('Failed to fetch course recommendations:', error)
+        setCourseRecommendedPlaces([])
+        setCourseRecommendationError('추천을 불러오지 못했어요.')
+      })
+      .finally(() => setCourseRecommendationLoading(false))
   }, [room, roomNo, selectedTag])
 
   if (loading) {
@@ -231,20 +256,20 @@ export function ActiveRoomScreen() {
             </span>
           </div>
           <div className="h-1" />
-          {recommendationLoading ? (
+          {initialRecommendationLoading ? (
             <div className="flex h-[146px] items-center justify-center rounded-card border border-border bg-white">
               <Loader2 className="animate-spin" size={28} color={colors.accent} />
             </div>
-          ) : recommendationError ? (
+          ) : initialRecommendationError ? (
             <button
               type="button"
               onClick={openRecommendation}
               className="flex h-[96px] w-full items-center justify-center rounded-card border border-border bg-white px-4 text-sm font-bold text-sub"
             >
-              {recommendationError}
+              {initialRecommendationError}
             </button>
-          ) : recommendedPlaces.length > 0 ? (
-            recommendedPlaces.slice(0, 1).map((place) => {
+          ) : initialRecommendedPlaces.length > 0 ? (
+            initialRecommendedPlaces.slice(0, 1).map((place) => {
               const tag = tagColors(place.category)
               return (
                 <RecommendationCard
@@ -333,20 +358,30 @@ export function ActiveRoomScreen() {
             </div>
             <div className="h-2.5" />
             <div className="space-y-2.5">
-              {recommendationLoading ? (
+              {courseRecommendationLoading ? (
                 <div className="flex h-[118px] items-center justify-center rounded-card border border-border bg-accentBg">
                   <Loader2 className="animate-spin" size={26} color={colors.accent} />
                 </div>
-              ) : recommendedPlaces.slice(1, 3).map((place) => (
+              ) : courseRecommendationError ? (
+                <button
+                  type="button"
+                  onClick={openRecommendation}
+                  className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
+                >
+                  {courseRecommendationError}
+                </button>
+              ) : courseRecommendedPlaces.slice(0, 2).map((place) => (
                 <button
                   key={place.storeId ?? place.name}
                   type="button"
                   onClick={openRecommendation}
                   className="flex h-[118px] w-full items-center rounded-card border border-border bg-accentBg p-3.5 text-left"
                 >
-                  <div className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full bg-white">
-                    <ReceiptText aria-hidden="true" size={28} color={colors.accent} />
-                  </div>
+                  <img
+                    src={place.thumbnailUrl}
+                    alt=""
+                    className="h-[58px] w-[58px] shrink-0 rounded-compact object-cover"
+                  />
                   <div className="w-[13px]" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-black text-accent">
@@ -365,7 +400,7 @@ export function ActiveRoomScreen() {
                   <ChevronRight aria-hidden="true" color={colors.brown} />
                 </button>
               ))}
-              {!recommendationLoading && recommendedPlaces.length <= 1 && (
+              {!courseRecommendationLoading && !courseRecommendationError && courseRecommendedPlaces.length <= 2 && (
                 <button
                   type="button"
                   onClick={openRecommendation}

@@ -224,8 +224,8 @@ export function RecommendationScreen() {
           </div>
           <div className="h-6" />
           <PrimaryButton
-            label="거지방 시작하기"
-            onTap={() => navigate(`/room/${roomNo}`)}
+            label="돌아가기"
+            onTap={() => navigate(-1)}
           />
           <div style={{ height: spacing.bottomSafe }} />
         </section>
