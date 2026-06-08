@@ -8,7 +8,7 @@ import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
 import { softBox } from '../../components/ui/softBox'
 import { money } from '../../lib/format'
-import { members, receipts } from '../../mocks'
+import { members } from '../../mocks'
 import { searchLocations } from '../../lib/api/locations'
 import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
 import { colors, gradients, radii, spacing } from '../../theme/tokens'
@@ -69,7 +69,7 @@ export function ReceiptSplitScreen() {
   )
   const remaining = totalAmount - splitTotal
 
-  // 가게 이름 입력 시 검색 (Debounce)
+  // 가게 이름 입력 시 검색
   useEffect(() => {
     if (storeName.length < 2 || (selectedStore && selectedStore.name === storeName)) {
       setSearchResults([])
@@ -127,7 +127,7 @@ export function ReceiptSplitScreen() {
     setMode('custom')
   }
 
-  // OCR 결과 폴링
+  // OCR 결과
   const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
     if (!receiptId) {
       setOcrLoading(false)

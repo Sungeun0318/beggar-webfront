@@ -92,18 +92,33 @@ export function ReceiptRegisterScreen() {
     }
 
     let attempts = 0
-    const maxAttempts = 30
+    const maxAttempts = 50
+
+    console.log(`[OCR 폴링 시작] 영수증 ID: ${receiptId}`)
 
     const interval = setInterval(async () => {
       attempts++
       try {
         const detail = await getReceiptDetail(targetRoomNo, receiptId)
+        console.log(`[OCR 폴링 ${attempts}/${maxAttempts}]`, detail)
+        
         // 분석 완료 조건 완화: SUCCESS 상태이거나, 실제 데이터(가게명 또는 금액)가 들어왔을 때
         const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''
         const hasAmount = (detail.totalAmount && detail.totalAmount !== 0) || (detail as any).amount !== 0
         const isSuccess = (detail as any).ocrStatus === 'SUCCESS'
+        const isFailed = (detail as any).ocrStatus === 'FAILED'
+
+        if (isFailed) {
+          console.error('[OCR 분석 실패] 백엔드에서 분석 실패 상태를 반환했습니다.')
+          clearInterval(interval)
+          setOcrLoading(false)
+          alert('영수증 분석에 실패했습니다. 직접 입력해주세요.')
+          setStep('MANUAL')
+          return
+        }
 
         if (isSuccess || hasStore || hasAmount) {
+          console.log('[OCR 분석 완료] 데이터를 화면에 반영합니다.')
           clearInterval(interval)
           
           setStoreName(hasStore ? detail.storeName! : '')
@@ -118,6 +133,7 @@ export function ReceiptRegisterScreen() {
       }
 
       if (attempts >= maxAttempts) {
+        console.warn('[OCR 분석 시간 초과] 최대 시도 횟수에 도달했습니다.')
         clearInterval(interval)
         setOcrLoading(false)
         alert('영수증 분석 시간이 초과되었습니다. 직접 입력해주세요.')
@@ -126,40 +142,55 @@ export function ReceiptRegisterScreen() {
     }, 3000)
   }
 
-  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>, method: 'CAMERA' | 'GALLERY') => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>, method: 'CAMERA' | 'ALBUM') => {
     const file = event.target.files?.[0]
     if (!file) return
+
+    console.log(`[영수증 업로드 시작] 방식: ${method}`)
+    console.log(`- 파일명: ${file.name}`)
+    console.log(`- 파일타입: ${file.type}`)
+    console.log(`- 파일크기: ${(file.size / 1024).toFixed(2)} KB`)
 
     setOcrLoading(true)
     setActiveInputMethod(method)
     try {
-      // 1. S3 업로드
+      console.log(`- S3 업로드 시도 중... (roomNo: ${roomNo})`)
       const imageUrl = await uploadReceiptImage(roomNo, file)
-// 2. OCR 트리거를 위한 영수증 생성
-const receipt = await createReceipt(roomNo, {
-  storeName: '',
-  amount: 0,
-  receiptType: 'COMBINED',
-  inputMethod: method,
-  image: imageUrl,
+      console.log(`- S3 업로드 성공! 결과 URL: ${imageUrl}`)
 
-  imageUrl: imageUrl,
-})
+      const receiptData = {
+        storeName: '',
+        amount: 0,
+        receiptType: 'COMBINED' as const,
+        inputMethod: method,
+        image: imageUrl,
+        imageUrl: imageUrl,
+      }
+      console.log("- 백엔드 영수증 생성 요청 데이터:", receiptData)
 
-// 3. 결과 폴링
-const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
-setCurrentReceiptId(finalReceiptId)
-pollOcrResult(roomNo, finalReceiptId)
+      const receipt = await createReceipt(roomNo, receiptData)
+      console.log("- 백엔드 영수증 생성 완료:", receipt)
+
+      // 3. 결과 폴링
+      const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
+      console.log(`- OCR 폴링 시작 (receiptId: ${finalReceiptId})`)
+      setCurrentReceiptId(finalReceiptId)
+      pollOcrResult(roomNo, finalReceiptId)
 
     } catch (error: any) {
-      console.error('영수증 처리 실패:', error)
-      if (error.data) console.error('상세 에러 내용:', error.data)
+      console.error(`[${method} 처리 에러] 상세 내용:`, error)
+      if (error.data) console.error('에러 데이터:', error.data)
       setOcrLoading(false)
       alert('영수증 업로드에 실패했습니다.')
     }
   }
 
   const handleManualSubmit = async () => {
+    console.log("[직접 입력 등록 시작]")
+    console.log(`- 가게명: ${storeName}`)
+    console.log(`- 금액: ${amount}`)
+    console.log(`- 선택된 스토어 객체:`, selectedStore)
+
     if (!storeName || !amount) {
       alert('가게 이름과 금액을 입력해주세요.')
       return
@@ -179,16 +210,20 @@ pollOcrResult(roomNo, finalReceiptId)
         centerLat: selectedStore?.lat,
         centerLng: selectedStore?.lng,
       }
+      console.log("- 백엔드 등록 요청 데이터:", payload)
 
       if (currentReceiptId) {
-        // 이미 생성된 영수증이 있으면 업데이트 (PATCH)
+        console.log(`- 기존 영수증 업데이트 시도 (receiptId: ${currentReceiptId})`)
         await updateReceipt(roomNo, currentReceiptId, payload)
       } else {
+        console.log("- 새 영수증 생성 시도")
         await createReceipt(roomNo, payload)
       }
+      console.log("- 등록 성공!")
       complete()
-    } catch (error) {
+    } catch (error: any) {
       console.error('영수증 등록 실패:', error)
+      if (error.data) console.error('에러 데이터:', error.data)
       alert('영수증 등록에 실패했습니다.')
     } finally {
       setIsSubmitting(false)
