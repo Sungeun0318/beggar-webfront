@@ -1,4 +1,4 @@
-import { Client, IFrame, IMessage } from "@stomp/stompjs";
+import { Client, type IFrame, type IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";

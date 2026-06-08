@@ -4,6 +4,7 @@ type Query = Record<string, QueryValue>
 type RequestOptions = {
   query?: Query
   body?: unknown
+  headers?: Record<string, string>
 }
 
 export class ApiError extends Error {
@@ -42,12 +43,12 @@ function buildUrl(path: string, query?: Query) {
 async function request<T>(
   method: string,
   path: string,
-  { query, body }: RequestOptions = {},
+  { query, body, headers: customHeaders }: RequestOptions = {},
 ): Promise<T> {
-  const headers = new Headers({ Accept: 'application/json' })
+  const headers = new Headers({ Accept: 'application/json', ...customHeaders })
   const accessToken = localStorage.getItem('accessToken')
 
-  if (accessToken) {
+  if (accessToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${accessToken}`)
   }
 
@@ -83,11 +84,14 @@ async function request<T>(
 }
 
 export const client = {
-  get: <T>(path: string, query?: Query) => request<T>('GET', path, { query }),
-  getList: <T>(path: string, query?: Query) =>
-    request<T[]>('GET', path, { query }),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, { body }),
-  patch: <T>(path: string, body?: unknown) =>
-    request<T>('PATCH', path, { body }),
-  del: <T>(path: string) => request<T>('DELETE', path),
+  get: <T>(path: string, query?: Query, headers?: Record<string, string>) =>
+    request<T>('GET', path, { query, headers }),
+  getList: <T>(path: string, query?: Query, headers?: Record<string, string>) =>
+    request<T[]>('GET', path, { query, headers }),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+    request<T>('POST', path, { body, headers }),
+  patch: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+    request<T>('PATCH', path, { body, headers }),
+  del: <T>(path: string, headers?: Record<string, string>) =>
+    request<T>('DELETE', path, { headers }),
 }

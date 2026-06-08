@@ -6,9 +6,12 @@ export type User = {
 
 export type Room = {
   no: number
+  roomNo?: number      //  백엔드용 roomNo 추가 허용
   ownerNo: number
   name: string
+  roomName?: string    //  백엔드용 roomName 추가 허용
   code: string
+  roomCode?: string    // 백엔드용 roomCode 추가 허용
   location: string
   tags: string[]
   memberCount: number
@@ -19,6 +22,7 @@ export type Member = {
   name: string
   status: string
   mine: boolean
+  budgetSubmitted?: boolean
 }
 
 export type BudgetResult = {

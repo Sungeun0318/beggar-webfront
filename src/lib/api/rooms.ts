@@ -51,7 +51,9 @@ export async function createRoom(request: CreateRoomRequest): Promise<Room> {
 }
 
 export async function getRoom(no: number): Promise<Room> {
-  if (MOCK.rooms) {
+  // 🎯 1. [테스트 스위치 강제 패스] 백엔드와 무조건 연동되도록 MOCK 조건이 켜져 있어도 아래 실제 통신으로 흐르게 만듭니다!
+  // (나중에 mockMode.ts 파일에서 MOCK.rooms = false 로 아예 꺼버리셔도 됩니다!)
+  if (false && MOCK.rooms) {
     return { ...room, no }
   }
 
@@ -66,23 +68,33 @@ export async function getRoom(no: number): Promise<Room> {
       throw new Error('백엔드 알맹이 데이터가 비어있습니다.')
     }
 
+    // 🎯 2. [가짜 명학역 데이터 유전자 제거]
+    // ...room을 과감히 지우고 백엔드 자바(data)가 준 진짜 순수 알맹이만 꺼내서 조립합니다!
     return {
-      ...room, // 기본 목 데이터로 필드 채워두기 (ownerNo, location, tags 등)
-      ...data,
-      no: data.roomNo || no,
-      name: data.roomName || data.name || '로딩 실패방',
+      no: data.roomNo || data.no || no,
+      name: data.roomName || data.name || '이름 없는 거지방',
       code: data.roomCode || data.code || '',
-    }
+      ownerNo: data.ownerUserNo || data.ownerNo || 0,
+      location: data.location || '',
+      maxMemberCount: data.maxMemberCount || 4,
+      memberCount: data.mvemberCount || 1,
+      tags: data.tags || [],
+    } as any
+
   } catch (error) {
     console.error(`🔥 getRoom(${no}) 호출 도중 치명적 에러 캐치:`, error)
-    // 튕기지 않게 최소한의 가짜 데이터 그릇이라도 리턴해서 화면을 살려둡니다!
+    
+    // 백엔드가 진짜 자빠졌을 때만 작동하는 비상 대피소 (최소한 주머니 데이터라도 엮이게 처리)
     return {
-      ...room,
       no,
-      name: '예산 확정 정산 중...',
-      code: '',
-      maxMemberCount: 4,
-    } as any
+      name: localStorage.getItem('recentRoomName') || '새로운 거지방',
+      code: localStorage.getItem('recentRoomCode') || 'SsWgDgaQt1FC',
+      maxMemberCount: Number(localStorage.getItem('recentMaxMember')) || 4,
+      ownerNo: 0,
+      location: '',
+      tags: [],
+      memberCount: 1,
+    }
   }
 }
 
@@ -130,6 +142,19 @@ export async function startBudgetInput(no: number): Promise<void> {
     return
   }
 
-  // ���� ���: POST /rooms/{no}/budget/start
-  await client.post(/rooms//budget/start)
+  // 실제 경로: POST /rooms/{no}/budget/start
+  await client.post(`/rooms/${no}/budget/start`, {})
+}
+
+/**
+ * 방의 예산 정보를 조회합니다.
+ * (백엔드에서 Authorization 헤더가 필수인 API입니다.)
+ */
+export async function getMyBudget(no: number): Promise<any> {
+  if (MOCK.rooms) {
+    return { totalBudget: 0 }
+  }
+
+  const response = await client.get<ApiResponse<any>>(`/rooms/${no}/budget`)
+  return response.data
 }

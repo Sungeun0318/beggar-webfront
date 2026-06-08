@@ -24,7 +24,7 @@ function tagColors(category: string) {
   if (category.includes("카페")) {
     return { bg: colors.tagBgCafe, fg: colors.tagFgCafe }
   }
-  if (category.includes("???")) {
+  if (category.includes("놀거리")) {
     return { bg: colors.tagBgPlay, fg: colors.tagFgPlay }
   }
   return { bg: colors.tagBgFood, fg: colors.danger }
@@ -32,8 +32,8 @@ function tagColors(category: string) {
 
 function placeAmount(place: RecommendedPlace) {
   return place.expectedPrice == null
-    ? "��??�보 ?�음"
-    : `${money(place.expectedPrice)}??
+    ? "금액 정보 없음"
+    : `${money(place.expectedPrice)}원`
 }
 
 const nearbyRadius = 5000
@@ -80,13 +80,13 @@ export function RecommendationScreen() {
   const recommendationBudget = result?.recommendationBudget
   const budgetLabel =
     recommendationBudget == null
-      ? "?��? ?�산 기�? 추천"
-      : `1??추천 ?�산 ${money(recommendationBudget)}??
+      ? "전체 예산 기준 추천"
+      : `1인 추천 예산 ${money(recommendationBudget)}원`
 
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
-        <AppHeaderTitled title="?�산??맞는 추천" onBack={() => navigate(-1)} />
+        <AppHeaderTitled title="예산에 맞는 추천" onBack={() => navigate(-1)} />
         <section className="px-pageH pt-2">
           <button
             type="button"
@@ -95,8 +95,8 @@ export function RecommendationScreen() {
           >
             <SummaryRow
               Icon={MapPin}
-              label={selectedRegion || "�???�체"}
-              trailing="��?
+              label={selectedRegion || "지역전체"}
+              trailing="변경"
               bg={colors.accentBg}
             />
           </button>
@@ -134,7 +134,7 @@ export function RecommendationScreen() {
               className="mt-3.5 rounded-compact px-3.5 py-3 text-[13px] font-semibold leading-[1.45] text-darkSub"
               style={softBox({ color: colors.bg, radius: radii.compact })}
             >
-              {result.fallbackApplied ? "?�?추천?�에?? " : ""}
+              {result.fallbackApplied ? "인기 추천지에서 " : ""}
               {result.budgetGuide}
             </div>
           )}
@@ -154,8 +154,8 @@ export function RecommendationScreen() {
                     image={place.thumbnailUrl}
                     tag={place.category}
                     title={place.name}
-                    walk={`${place.walkTime ?? "?�보 ?�보 ?�음"} · ${place.address}`}
-                    rating={`${place.menuName ?? "???메뉴"} · ??${
+                    walk={`${place.walkTime ?? "도보 정보 없음"} · ${place.address}`}
+                    rating={`${place.menuName ?? "추천 메뉴"} · ★${
                       place.rating?.toFixed(1) ?? "-"
                     }`}
                     amount={placeAmount(place)}
@@ -180,16 +180,16 @@ export function RecommendationScreen() {
             />
             <div className="ml-3 min-w-0 flex-1">
               <p className="text-[15px] font-extrabold text-text">
-                ?�는 ?�산까�? 고려??조합 추천
+                있는 예산까지 고려한 조합 추천
               </p>
               <p className="mt-1 text-xs font-semibold leading-[1.45] text-sub">
-                착한�격업?��? ?��? ?�산???�께 보고 추천?�어.
+                착한가격업소와 남은 예산을 함께 보고 추천해줘.
               </p>
             </div>
           </div>
           <div className="h-6" />
           <PrimaryButton
-            label="거�?�??�작?�기"
+            label="거지방 시작하기"
             onTap={() => navigate(`/room/${roomNo}`)}
           />
           <div style={{ height: spacing.bottomSafe }} />
@@ -199,10 +199,10 @@ export function RecommendationScreen() {
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/35 px-8">
             <div className="w-full max-w-[360px] p-5" style={softBox({ radius: radii.card })}>
               <h2 className="text-center text-lg font-extrabold text-text">
-                카카?�맵?�로 ?�동?��??
+                카카오맵으로 이동할까요?
               </h2>
               <p className="mt-2.5 text-center text-sm font-semibold leading-[1.45] text-sub">
-                ?�택??�게�? 카카?�맵?�서 ?�인?????�어??
+                선택한 가게를 카카오맵에서 확인하실 수 있어요.
               </p>
               <div className="mt-[18px] flex gap-2.5">
                 <button
@@ -220,7 +220,7 @@ export function RecommendationScreen() {
                   }}
                   className="h-[46px] flex-1 rounded-compact bg-accent text-sm font-extrabold text-white"
                 >
-                  ?�인
+                  확인
                 </button>
               </div>
             </div>
@@ -235,19 +235,19 @@ export function RecommendationScreen() {
             onCurrentLocation={() => {
               setLocationError(null)
               if (!navigator.geolocation) {
-                setLocationError("?�재 ?�치�??�용?????�는 브라?��???")
+                setLocationError("현재 위치를 사용할 수 없는 브라우저입니다.")
                 return
               }
               navigator.geolocation.getCurrentPosition(
                 (position) => {
                   setSheetOpen(false)
-                  setSelectedRegion("?�재 ?�치")
+                  setSelectedRegion("현재 위치")
                   setSelectedRegionQuery(null)
                   setSelectedLat(position.coords.latitude)
                   setSelectedLng(position.coords.longitude)
                 },
                 () => {
-                  setLocationError("?�재 ?�치�?�?�오� 못했??")
+                  setLocationError("현재 위치를 가져오지 못했어요.")
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
               )
@@ -312,7 +312,7 @@ function LocationSheet({
       setResults(list)
       setSearched(true)
     } catch {
-      setError("�??�??�을 불러?��? 못했??")
+      setError("목록 정보를 불러오지 못했어요.")
     } finally {
       setIsSearching(false)
     }
@@ -323,7 +323,7 @@ function LocationSheet({
       <button type="button" onClick={onClose} className="absolute inset-0 bg-black/35" />
       <div className="relative w-full max-w-[390px] rounded-card bg-white px-5 pb-6 pt-[22px]">
         <div className="flex items-center">
-          <p className="flex-1 text-lg font-extrabold text-text">추천 �??/p>
+          <p className="flex-1 text-lg font-extrabold text-text">추천 위치</p>
           <button type="button" onClick={onClose} className="text-sub">
             <X size={22} />
           </button>
@@ -334,7 +334,7 @@ function LocationSheet({
           onClick={onCurrentLocation}
           className="mt-3.5 flex h-12 w-full items-center justify-center gap-2 rounded-compact border border-border text-sm font-bold text-text"
         >
-          <LocateFixed size={18} /> ?�재 ?�치 ?�용
+          <LocateFixed size={18} /> 현재 위치 사용
         </button>
         {locationError && <p className="mt-2 text-center text-xs font-semibold text-danger">{locationError}</p>}
         <div className="mt-3.5 flex gap-2">
@@ -342,7 +342,7 @@ function LocationSheet({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void search() }}
-            placeholder="?�네, ?? 건물�?�??"
+            placeholder="동네, 구, 건물명 등"
             className="h-12 flex-1 rounded-compact bg-bg px-3.5 text-sm text-text placeholder:text-placeholder focus:outline-none"
           />
           <button
@@ -356,11 +356,11 @@ function LocationSheet({
         </div>
         <div className="mt-3">
           {isSearching ? (
-            <p className="py-6 text-center text-sm font-semibold text-sub">�??중�?</p>
+            <p className="py-6 text-center text-sm font-semibold text-sub">검색 중...</p>
           ) : error ? (
-            <LocationMessage message={error} actionLabel="?�시 �???" onAction={() => void search()} />
+            <LocationMessage message={error} actionLabel="다시 검색" onAction={() => void search()} />
           ) : searched && results.length === 0 ? (
-            <LocationMessage message="�?? 결과� ?�어." actionLabel="?�력??�??���?�???" onAction={() => onManualRegion(query)} />
+            <LocationMessage message="검색 결과가 없어." actionLabel="입력한 지역으로 설정" onAction={() => onManualRegion(query)} />
           ) : results.length > 0 ? (
             <ul className="max-h-[260px] overflow-y-auto">
               {results.map((item, index) => (
@@ -387,4 +387,3 @@ function LocationMessage({ message, actionLabel, onAction }: { message: string, 
     </div>
   )
 }
-

@@ -8,7 +8,7 @@ import { ParticipantTile } from '../../components/ParticipantTile'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
-import { getRoom, getRoomMembers } from '../../lib/api/rooms'
+import { getRoom, getRoomMembers, startBudgetInput } from '../../lib/api/rooms'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Member } from '../../types'
@@ -19,7 +19,7 @@ export function InviteRoomScreen() {
   const location = useLocation()
   const targetRoomNo = Number(roomNo) || 1
 
-  // 방 생성 직후 넘어온 경우, 생성 응답의 roomCode를 바로 사용 (백엔드 GET /rooms/{no} 미구현 대비)
+  // 방 생성 직후 넘어온 경우, 생성 응답의 roomCode를 바로 사용
   const presetRoom = (location.state as { room?: { name?: string; code?: string; maxMemberCount?: number } } | null)?.room
 
   const [roomData, setRoomData] = useState({
@@ -31,28 +31,49 @@ export function InviteRoomScreen() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', targetRoomNo)
+    const urlRoomNo = Number(roomNo)
+    const savedRoomNo = Number(localStorage.getItem('recentRoomNo'))
+    
+    // 🌟 URL에 방 번호가 있으면 그걸 최우선으로 사용합니다! (로컬스토리지보다 우선)
+    const finalRoomNo = urlRoomNo || savedRoomNo || 1
+
+    console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', finalRoomNo)
 
     Promise.all([
-      getRoom(targetRoomNo).catch((err) => {
+      getRoom(finalRoomNo).catch((err) => {
         console.error('방 정보 로딩 실패:', err)
         return null
       }),
-      getRoomMembers(targetRoomNo).catch((err) => {
+      getRoomMembers(finalRoomNo).catch((err) => {
         console.error('멤버 로딩 실패:', err)
         return null
       }),
     ])
       .then(([roomResponse, membersResponse]) => {
         console.log('📦 백엔드가 준 원본 방 데이터:', roomResponse)
-        console.log('👥 백엔드가 준 원본 멤버 데이터:', membersResponse)
-
 
         if (roomResponse) {
+          const res = roomResponse as any
+          const name = res.roomName || res.name || '새로운 거지방'
+          const code = res.roomCode || res.code || 'SsWgDgaQt1FC'
+          const maxCount = Number(res.maxMemberCount) || 2
+
           setRoomData({
-            roomName: roomResponse.name || '이름 없는 거지방',
-            roomCode: roomResponse.code || 'code-error',
-            maxMemberCount: roomResponse.maxMemberCount || 4,
+            roomName: name,
+            roomCode: code,
+            maxMemberCount: maxCount,
+          })
+
+          // ✅ 데이터를 성공적으로 가져왔을 때만 로컬스토리지를 최신화합니다.
+          localStorage.setItem('recentRoomNo', finalRoomNo.toString())
+          localStorage.setItem('recentRoomName', name)
+          localStorage.setItem('recentRoomCode', code)
+          localStorage.setItem('recentMaxMember', maxCount.toString())
+        } else {
+          setRoomData({
+            roomName: localStorage.getItem('recentRoomName') || '새로운 거지방',
+            roomCode: localStorage.getItem('recentRoomCode') || 'SsWgDgaQt1FC',
+            maxMemberCount: Number(localStorage.getItem('recentMaxMember')) || 2,
           })
         }
 
@@ -61,17 +82,16 @@ export function InviteRoomScreen() {
           finalMembers = membersResponse
         } else {
           finalMembers = [
-            { name: '나', status: '방장', mine: true },
+            { name: '나 (방장)', status: '대기 중', mine: true },
             { name: '대기 중인 거지 1', status: '초대 중', mine: false },
           ]
         }
-
         setRoomMembers(finalMembers)
       })
       .catch((err) => {
         console.error('🔥 데이터 최종 결합 실패:', err)
       })
-  }, [targetRoomNo])
+  }, [roomNo])
 
   const invitePath = `/join/${roomData.roomCode}`
   const inviteUrl =
@@ -167,7 +187,16 @@ export function InviteRoomScreen() {
             <div className="h-6" />
             <PrimaryButton
               label="예산 입력 시작"
-              onTap={() => navigate(`/budget/input/${targetRoomNo}`)}
+              onTap={async () => {
+                try {
+                  // 🚀 예산 입력을 시작한다고 백엔드에 알립니다.
+                  await startBudgetInput(targetRoomNo)
+                } catch (err) {
+                  console.error('🔥 예산 입력 시작 실패:', err)
+                  // 에러가 나더라도 화면 이동은 시도합니다. (이미 시작된 방일 수 있음)
+                }
+                navigate(`/budget/input/${targetRoomNo}`)
+              }}
             />
             <div style={{ height: spacing.bottomSafe }} />
           </div>
