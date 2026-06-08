@@ -24,13 +24,38 @@ type ApiResponse<T> = {
   message: string
 }
 
-export async function getMyRooms(): Promise<Room[]> {
+/**
+ * 내가 참여 중인 방 목록을 조회합니다.
+ * (백엔드: GET /rooms/my)
+ */
+export async function findMyRooms(): Promise<Room[]> {
   if (MOCK.rooms) {
     return [room]
   }
 
-  // 실제 경로: GET /rooms/my
-  return client.getList<Room>('/rooms/my')
+  // client.ts의 request 함수가 localStorage에서 accessToken을 꺼내 
+  // Authorization 헤더에 Bearer 토큰을 자동으로 실어줍니다.
+  const response = await client.get<ApiResponse<any[]>>('/rooms/my')
+  const data = response.data || []
+
+  return data.map((item: any) => ({
+    no: item.roomNo || item.no,
+    name: item.roomName || item.name || '이름 없는 거지방',
+    code: item.roomCode || item.code || '',
+    ownerNo: item.ownerUserNo || item.ownerNo || 0,
+    location: item.location || '',
+    maxMemberCount: item.maxMemberCount || 4,
+    memberCount: item.memberCount || item.mvemberCount || 1,
+    tags: item.tags || [],
+    status: item.roomStatus || item.status || '진행 중',
+    // 백엔드 응답에 포함될 수 있는 추가 필드들
+    budget: item.totalBudget || item.budget || 0,
+    spent: item.spentAmount || item.spent || 0,
+  })) as any
+}
+
+export async function getMyRooms(): Promise<Room[]> {
+  return findMyRooms()
 }
 
 export async function createRoom(request: CreateRoomRequest): Promise<Room> {

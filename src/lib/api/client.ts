@@ -21,7 +21,7 @@ export class ApiError extends Error {
 
 const defaultBaseUrl =
   'http://savemyfriendship-env.eba-h8rmizc9.ap-northeast-2.elasticbeanstalk.com'
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? defaultBaseUrl
+export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? defaultBaseUrl
 
 function buildUrl(path: string, query?: Query) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
@@ -113,4 +113,22 @@ export const client = {
   ) => request<T>('PATCH', path, { body, query, headers }),
   del: <T>(path: string, headers?: Record<string, string>) =>
     request<T>('DELETE', path, { headers }),
+  blob: async (path: string, query?: Query): Promise<Blob> => {
+    const accessToken = localStorage.getItem('accessToken')
+    const headers = new Headers()
+    if (accessToken) {
+      headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+
+    const response = await fetch(buildUrl(path, query), {
+      method: 'GET',
+      headers,
+    })
+
+    if (!response.ok) {
+      throw new ApiError(response.status, '파일 다운로드에 실패했어요.', null)
+    }
+
+    return response.blob()
+  },
 }
