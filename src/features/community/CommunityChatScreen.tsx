@@ -53,34 +53,61 @@ export function CommunityChatScreen() {
   const [chats, setChats] = useState<RoomFreeChat[]>([])
 
   useEffect(() => {
-    // 기존 채팅 내역 로드
-    void getChats().then(setChats)
+    const myName = localStorage.getItem('userName')
+
+    // 기존 채팅 내역 로드 및 내 메시지 여부 판별
+    void getChats().then((data) => {
+      const transformed = data.map((chat) => ({
+        ...chat,
+        isMine: chat.sender === myName,
+      }))
+      setChats(transformed)
+    })
+
+    let subscription: { unsubscribe: () => void } | undefined
 
     // WebSocket 연결 및 구독
     wsClient.connect(() => {
-      wsClient.subscribe('/sub/chats', (msg) => {
-        const receivedChat: RoomFreeChat = JSON.parse(msg.body)
-        setChats((prev) => {
-          // 중복 방지 (본인이 보낸 것이 이미 로컬에 추가되었을 경우 등 대비)
-          if (prev.some(c => c.id === receivedChat.id)) return prev
-          return [...prev, receivedChat]
-        })
+      console.log('커뮤니티 채팅 웹소켓 연결 성공')
+      
+      subscription = wsClient.subscribe('/sub/chats', (msg) => {
+        try {
+          const receivedChat = JSON.parse(msg.body)
+          
+          // 로컬 스토리지의 유저 정보와 비교하여 isMine 결정
+          const myName = localStorage.getItem('userName')
+          const chatWithMine: RoomFreeChat = {
+            ...receivedChat,
+            isMine: receivedChat.sender === myName
+          }
+
+          setChats((prev) => {
+            if (prev.some(c => c.id === chatWithMine.id)) return prev
+            return [...prev, chatWithMine]
+          })
+        } catch (err) {
+          console.error('채팅 메시지 파싱 실패:', err)
+        }
       })
     })
 
     return () => {
-      wsClient.disconnect()
+      console.log('커뮤니티 채팅 웹소켓 정리 중')
+      subscription?.unsubscribe()
     }
   }, [])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const nextMessage = message.trim()
     if (!nextMessage) return
 
-    // API를 통해 메시지 전송 (WebSocket publish 대신 REST API 사용)
-    void sendChat(nextMessage)
-    
-    setMessage('')
+    try {
+      await sendChat(nextMessage)
+      setMessage('')
+    } catch (err) {
+      console.error('채팅 전송 실패:', err)
+      alert('메시지 전송에 실패했습니다.')
+    }
   }
 
   return (
@@ -94,7 +121,7 @@ export function CommunityChatScreen() {
             style={softBox({ color: colors.accentBg, radius: radii.card })}
           >
             <p className="text-[14px] font-semibold leading-[1.55] text-sub">
-              전체 사용자 128명이 참여 중이에요. 착한가격 업소, 쿠폰, 절약 루트를 자유롭게 공유해요.
+              착한가격 업소, 쿠폰, 절약 루트를 자유롭게 공유해요!
             </p>
           </div>
 

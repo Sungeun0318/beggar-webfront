@@ -116,6 +116,24 @@ export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
   }
 }
 
+export async function getPopularPosts(): Promise<RoomFreePost[]> {
+  if (MOCK.communityRead) {
+    // 인기글 모크: 댓글 많은 순으로 정렬하여 상위 10개 (여기서는 그냥 mockPosts 활용)
+    return [...mockPosts].sort((a, b) => b.commentCount - a.commentCount).slice(0, 10)
+  }
+
+  // 실제 경로: GET /api/freerooms/posts/popular
+  try {
+    const response = await client.get<{ data: RoomFreePost[] }>(
+      '/api/freerooms/posts/popular'
+    )
+    return response.data
+  } catch (error) {
+    console.warn('인기 게시글 API 실패 - mock 대체', error)
+    return mockPosts.slice(0, 10)
+  }
+}
+
 export async function getPostDetail(
   postId: number,
 ): Promise<RoomFreePostDetail> {
