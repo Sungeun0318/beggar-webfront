@@ -13,6 +13,7 @@ import { wsClient } from '../../lib/websocket'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Member } from '../../types'
+import { shareRoomInvitation } from '../../lib/kakao'
 
 export function InviteRoomScreen() {
   const navigate = useNavigate()
@@ -119,7 +120,7 @@ export function InviteRoomScreen() {
               setRoomMembers(body.data)
               break
 
-            case 'BUDGET_INPUT_STARTED':
+            case 'BUDGET_INPUT_STARTED': {
               console.log('🚀 예산 입력 시작됨! 이동 경로:', body.data)
               let targetUrl = body.data
               // query param 형식을 path param 형식으로 변환 (필요시)
@@ -129,6 +130,7 @@ export function InviteRoomScreen() {
               }
               navigate(targetUrl || `/budget/input/${finalRoomNo}`)
               break
+            }
 
             default:
               console.log('ℹ️ 처리되지 않은 이벤트 타입:', body.type)
@@ -149,6 +151,18 @@ export function InviteRoomScreen() {
       ? '초대 링크 생성 중...'
       : `${window.location.origin}${invitePath}`
   const canCopy = roomData.roomCode !== 'loading...'
+
+  const handleKakaoShare = async () => {
+    if (!canCopy) return
+    try {
+      await shareRoomInvitation({
+        roomName: roomData.roomName,
+        roomCode: roomData.roomCode,
+      })
+    } catch (err) {
+      console.error('카카오 공유 실패:', err)
+    }
+  }
 
   const copyInviteUrl = async () => {
     if (!canCopy) return
@@ -213,6 +227,16 @@ export function InviteRoomScreen() {
                 <p className="mt-2 h-4 text-[11px] font-bold text-accent">
                   {copied ? '초대 링크를 복사했어요' : ''}
                 </p>
+
+                <button
+                  type="button"
+                  onClick={handleKakaoShare}
+                  disabled={!canCopy}
+                  className="mt-2 flex h-[54px] w-full items-center justify-center rounded-compact bg-[#FEE500] text-sm font-bold text-[#3C1E1E] transition-opacity active:opacity-80 disabled:opacity-40"
+                >
+                  <MessageCircle className="mr-2 fill-[#3C1E1E]" size={20} />
+                  카카오톡으로 초대장 보내기
+                </button>
               </div>
             </div>
             <div className="h-6" />

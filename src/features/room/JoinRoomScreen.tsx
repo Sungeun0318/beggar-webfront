@@ -14,26 +14,31 @@ import { softBox } from '../../components/ui/softBox'
 
 export function JoinRoomScreen() {
   const navigate = useNavigate()
-  const { code = '' } = useParams()
-  const [roomCode, setRoomCode] = useState(code)
+  const { code: pathCode } = useParams()
+  
+  // URL 쿼리 파라미터에서 code 가져오기 (카카오톡 공유 링크 대응)
+  const queryCode = new URLSearchParams(window.location.search).get('code')
+  const initialCode = pathCode || queryCode || ''
+
+  const [roomCode, setRoomCode] = useState(initialCode)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
     if (!localStorage.getItem('accessToken')) {
-      localStorage.setItem('pendingPath', window.location.pathname)
+      localStorage.setItem('pendingPath', window.location.pathname + window.location.search)
       navigate('/login', { replace: true })
     }
   }, [navigate])
 
-  const submitJoin = async () => {
-    const trimmedCode = roomCode.trim()
-    if (!trimmedCode || isSubmitting) return
+  const submitJoin = async (targetCode?: string) => {
+    const codeToUse = (targetCode || roomCode).trim()
+    if (!codeToUse || isSubmitting) return
 
     setErrorMessage('')
     setIsSubmitting(true)
     try {
-      const room = await joinRoom(trimmedCode)
+      const room = await joinRoom(codeToUse)
       
       // 방 상태가 이미 예산 입력 중이라면 바로 이동, 아니면 대기실로 이동
       if (room.status === 'BUDGET_INPUT' || (room as any).roomStatus === 'BUDGET_INPUT') {
@@ -51,6 +56,14 @@ export function JoinRoomScreen() {
       setIsSubmitting(false)
     }
   }
+
+  // 코드가 있는 상태로 진입 시 자동 입장 시도
+  useEffect(() => {
+    if (initialCode && localStorage.getItem('accessToken')) {
+      submitJoin(initialCode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <PhoneFrame>

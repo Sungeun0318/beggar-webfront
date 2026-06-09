@@ -4,6 +4,9 @@ type KakaoSdk = {
   Auth: {
     authorize: (options: { redirectUri: string }) => void
   }
+  Share: {
+    sendDefault: (options: any) => void
+  }
 }
 
 declare global {
@@ -16,9 +19,9 @@ const kakaoSdkUrl = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js'
 const defaultKakaoJsKey = 'dc879caeb8ec5f17221380f04d83fdc8'
 let sdkPromise: Promise<KakaoSdk> | null = null
 
-function loadKakaoSdk() {
+async function loadKakaoSdk() {
   if (window.Kakao) {
-    return Promise.resolve(window.Kakao)
+    return window.Kakao
   }
 
   if (sdkPromise) {
@@ -44,6 +47,22 @@ function loadKakaoSdk() {
   return sdkPromise
 }
 
+async function ensureKakaoInitialized() {
+  const appKey = import.meta.env.VITE_KAKAO_JS_KEY ?? defaultKakaoJsKey
+
+  if (!appKey) {
+    throw new Error('VITE_KAKAO_JS_KEY가 설정되지 않았어요.')
+  }
+
+  const kakao = await loadKakaoSdk()
+
+  if (!kakao.isInitialized()) {
+    kakao.init(appKey)
+  }
+
+  return kakao
+}
+
 export function getKakaoRedirectUri() {
   return `${window.location.origin}/`
 }
@@ -60,19 +79,48 @@ export function consumeKakaoCode() {
 }
 
 export async function authorizeWithKakao() {
-  const appKey = import.meta.env.VITE_KAKAO_JS_KEY ?? defaultKakaoJsKey
-
-  if (!appKey) {
-    throw new Error('VITE_KAKAO_JS_KEY가 설정되지 않았어요.')
-  }
-
-  const kakao = await loadKakaoSdk()
-
-  if (!kakao.isInitialized()) {
-    kakao.init(appKey)
-  }
+  const kakao = await ensureKakaoInitialized()
 
   kakao.Auth.authorize({
     redirectUri: getKakaoRedirectUri(),
+  })
+}
+
+/**
+ * 카카오톡 초대 공유 (Feed 타입)
+ */
+export async function shareRoomInvitation({
+  roomName,
+  roomCode,
+}: {
+  roomName: string
+  roomCode: string
+}) {
+  const kakao = await ensureKakaoInitialized()
+
+  // 초대 링크: /join?code={roomCode}
+  const inviteUrl = `${window.location.origin}/join?code=${roomCode}`
+
+  kakao.Share.sendDefault({
+    objectType: 'feed',
+    content: {
+      title: '💸 거지 우정 수호대 초대장',
+      description: `[${roomName}] 방에 초대받았습니다! 같이 절약하며 우정을 지켜봐요.`,
+      imageUrl:
+        'https://raw.githubusercontent.com/f-lab-edu/beggar-webfront/main/public/assets/images/figma/mascot_celebration.png',
+      link: {
+        mobileWebUrl: inviteUrl,
+        webUrl: inviteUrl,
+      },
+    },
+    buttons: [
+      {
+        title: '방 참여하기',
+        link: {
+          mobileWebUrl: inviteUrl,
+          webUrl: inviteUrl,
+        },
+      },
+    ],
   })
 }
