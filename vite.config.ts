@@ -16,6 +16,10 @@ export default defineConfig({
       '/rooms': 'http://127.0.0.1:8080',
       '/locations': 'http://127.0.0.1:8080',
       '/api': 'http://127.0.0.1:8080',
+      '/ws-stomp': {
+        target: 'http://127.0.0.1:8080',
+        ws: true,
+      },
     },
   },
   resolve: {

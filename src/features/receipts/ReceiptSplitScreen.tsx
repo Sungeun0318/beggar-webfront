@@ -11,6 +11,7 @@ import { money } from '../../lib/format'
 import { members } from '../../mocks'
 import { searchLocations } from '../../lib/api/locations'
 import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
+import { getRoom } from '../../lib/api/rooms'
 import { colors, gradients, radii, spacing } from '../../theme/tokens'
 import type { LocationSearchResult } from '../../types'
 

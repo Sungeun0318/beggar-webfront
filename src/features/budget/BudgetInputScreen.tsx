@@ -60,7 +60,7 @@ export function BudgetInputScreen() {
   useEffect(() => {
     loadRoomState()
 
-    wsClient.connect(() => {
+    wsClient.connect().then(() => {
       // 결과 화면으로 이동하는 공통 함수
       const goToResult = (url?: string) => {
         if (url && url.includes("?roomNo=")) {
