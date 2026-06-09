@@ -34,7 +34,13 @@ export function JoinRoomScreen() {
     setIsSubmitting(true)
     try {
       const room = await joinRoom(trimmedCode)
-      navigate(`/budget/input/${room.no}`)
+      
+      // 방 상태가 이미 예산 입력 중이라면 바로 이동, 아니면 대기실로 이동
+      if (room.status === 'BUDGET_INPUT' || (room as any).roomStatus === 'BUDGET_INPUT') {
+        navigate(`/budget/input/${room.no}`)
+      } else {
+        navigate(`/room/invite/${room.no}`)
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error

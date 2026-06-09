@@ -9,6 +9,7 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { getRoom, getRoomMembers, startBudgetInput } from '../../lib/api/rooms'
+import { wsClient } from '../../lib/websocket'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Member } from '../../types'
@@ -57,6 +58,13 @@ export function InviteRoomScreen() {
           const name = res.roomName || res.name || '새로운 거지방'
           const code = res.roomCode || res.code || 'SsWgDgaQt1FC'
           const maxCount = Number(res.maxMemberCount) || 2
+          const status = res.roomStatus || res.status
+
+          // ✅ 이미 예산 입력 단계라면 바로 이동 (사용자 경험 개선)
+          if (status === 'BUDGET_INPUT') {
+            navigate(`/budget/input/${finalRoomNo}`, { replace: true })
+            return
+          }
 
           setRoomData({
             roomName: name,
@@ -91,7 +99,49 @@ export function InviteRoomScreen() {
       .catch((err) => {
         console.error('🔥 데이터 최종 결합 실패:', err)
       })
-  }, [roomNo])
+
+    // 🌐 WebSocket 연결 및 구독 설정
+    let subscription: { unsubscribe: () => void } | undefined
+
+    wsClient.connect(() => {
+      console.log('✅ WebSocket Connected in InviteRoom!')
+
+      // 단일 채널 구독으로 통합: /topic/rooms/{roomNo}
+      subscription = wsClient.subscribe(
+        `/topic/rooms/${finalRoomNo}`,
+        (msg) => {
+          const body = JSON.parse(msg.body)
+          console.log('📨 WebSocket 메시지 수신:', body.type, body)
+
+          switch (body.type) {
+            case 'MEMBERS_UPDATED':
+              console.log('👥 멤버 리스트 갱신됨:', body.data)
+              setRoomMembers(body.data)
+              break
+
+            case 'BUDGET_INPUT_STARTED':
+              console.log('🚀 예산 입력 시작됨! 이동 경로:', body.data)
+              let targetUrl = body.data
+              // query param 형식을 path param 형식으로 변환 (필요시)
+              if (targetUrl && targetUrl.includes('?roomNo=')) {
+                const rNo = targetUrl.split('?roomNo=')[1]
+                targetUrl = `/budget/input/${rNo}`
+              }
+              navigate(targetUrl || `/budget/input/${finalRoomNo}`)
+              break
+
+            default:
+              console.log('ℹ️ 처리되지 않은 이벤트 타입:', body.type)
+          }
+        },
+      )
+    })
+
+    return () => {
+      console.log('🔌 Unsubscribing from WebSocket...')
+      subscription?.unsubscribe()
+    }
+  }, [roomNo, navigate])
 
   const invitePath = `/join/${roomData.roomCode}`
   const inviteUrl =

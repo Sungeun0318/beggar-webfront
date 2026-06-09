@@ -62,42 +62,45 @@ export function BudgetInputScreen() {
 
     wsClient.connect(() => {
       // 결과 화면으로 이동하는 공통 함수
-      const goToResult = () => navigate(`/budget/result/${targetRoomNo}`)
-
-      // 1. 멤버 목록 실시간 반영
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
-        const event = JSON.parse(message.body)
-        if (event.type === "MEMBERS_UPDATED") {
-          setRoomMembers(event.data)
-          setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
+      const goToResult = (url?: string) => {
+        if (url && url.includes("?roomNo=")) {
+          const rNo = url.split("?roomNo=")[1]
+          navigate(`/budget/result/${rNo}`)
+        } else {
+          navigate(`/budget/result/${targetRoomNo}`)
         }
-      })
+      }
 
-      // 2. 예산 제출 상황 동기화 (budget 토픽)
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/budget`, (message) => {
+      // 단일 채널 구독으로 통합: /topic/rooms/{roomNo}
+      wsClient.subscribe(`/topic/rooms/${targetRoomNo}`, (message) => {
         const event = JSON.parse(message.body)
-        if (event.type === "BUDGET_SUBMITTED") {
-          setSubmittedCount(event.data.submittedCount)
-          // 멤버 목록을 다시 불러와 제출 완료 처리 확인
-          getRoomMembers(targetRoomNo).then(setRoomMembers)
-        } else if (event.type === "BUDGET_CONFIRMED") {
-          // 예산 토픽으로 확정 이벤트가 오는 경우 대응
-          goToResult()
-        }
-      })
+        console.log("📨 WebSocket 메시지 수신:", event.type, event)
 
-      // 3. 예산 확정 및 방 상태 변경 이벤트 구동 (state 토픽)
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/state`, (message) => {
-        const event = JSON.parse(message.body)
-        
-        // BUDGET_CONFIRMED 타입이거나 STATE_CHANGED를 통한 상태 변화 감지
-        const isConfirmed = event.type === "BUDGET_CONFIRMED"
-        const isCompletedState = 
-          event.type === "STATE_CHANGED" && 
-          (event.data === "BUDGET_COMPLETED" || event.data?.state === "COMPLETED")
+        switch (event.type) {
+          case "MEMBERS_UPDATED":
+            setRoomMembers(event.data)
+            setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
+            break
 
-        if (isConfirmed || isCompletedState) {
-          goToResult()
+          case "BUDGET_SUBMITTED":
+            setSubmittedCount(event.data.submittedCount)
+            // 멤버 목록을 다시 불러와 제출 완료 처리 확인 (또는 event.data.members가 있다면 그걸 사용 가능)
+            getRoomMembers(targetRoomNo).then(setRoomMembers)
+            break
+
+          case "BUDGET_CONFIRMED":
+            console.log("✅ 예산 확정됨! 결과 화면으로 이동")
+            goToResult(event.data)
+            break
+
+          case "STATE_CHANGED":
+            if (event.data === "BUDGET_COMPLETED" || event.data?.state === "COMPLETED") {
+              goToResult()
+            }
+            break
+
+          default:
+            console.log("ℹ️ 처리되지 않은 이벤트 타입:", event.type)
         }
       })
     })

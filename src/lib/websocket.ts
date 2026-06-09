@@ -21,6 +21,11 @@ export class WebSocketClient {
   }
 
   connect(onConnect: (frame: IFrame) => void) {
+    if (this.connected && this.client.active) {
+      onConnect({} as IFrame) // 이미 연결됨
+      return
+    }
+
     this.client.onConnect = (frame) => {
       this.connected = true;
       onConnect(frame);
@@ -32,6 +37,10 @@ export class WebSocketClient {
     };
 
     this.client.activate();
+  }
+
+  isConnected() {
+    return this.connected && this.client.active;
   }
 
   subscribe(topic: string, callback: (message: IMessage) => void) {
