@@ -21,16 +21,11 @@ export async function getRecommendation(
   const token = localStorage.getItem('accessToken')
 
   // 실제 경로: GET /rooms/{no}/recommend?tag=&region=&lat=&lng=&radius=
-  try {
-    return await client.get<RecommendationResult>(
-      `/rooms/${roomNo}/recommend`,
-      params,
-      { Authorization: `Bearer ${token}` },
-    )
-  } catch (error) {
-    console.warn('추천 API 실패 - mock 대체', error)
-    return mockRecommendation(roomNo, params)
-  }
+  return client.get<RecommendationResult>(
+    `/rooms/${roomNo}/recommend`,
+    params,
+    { Authorization: `Bearer ${token}` },
+  )
 }
 
 function mockRecommendation(
@@ -56,7 +51,7 @@ function mockRecommendation(
         menuName: '제육 정식',
         walkTime: '도보 5분',
         rating: 4.6,
-        thumbnailUrl: '/assets/images/figma/reco_food.png',
+        thumbnailUrl: '/assets/images/figma/reco_korean.png',
         address: '경기 안양시 만안구 명학로 12',
         mapUrl: 'https://map.kakao.com/',
         source: 'GOOD_PRICE_STORE',
@@ -70,7 +65,7 @@ function mockRecommendation(
         menuName: '순두부찌개',
         walkTime: '도보 6분',
         rating: 4.4,
-        thumbnailUrl: '/assets/images/figma/reco_food.png',
+        thumbnailUrl: '/assets/images/figma/reco_korean.png',
         address: '경기 안양시 만안구 안양로 201',
         mapUrl: 'https://map.kakao.com/',
         source: 'GOOD_PRICE_STORE',

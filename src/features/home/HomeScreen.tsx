@@ -1,17 +1,34 @@
 import { PlusCircle, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { RoomHomeCard } from '../../components/RoomHomeCard'
-import { budgetResult, receipts, room } from '../../mocks'
+import { findMyRooms } from '../../lib/api/rooms'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
+import type { Room } from '../../types'
 
 export function HomeScreen() {
   const navigate = useNavigate()
-  const spent = receipts[0].amount + receipts[1].amount
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadRooms() {
+      try {
+        const data = await findMyRooms()
+        setRooms(data)
+      } catch (error) {
+        console.error('Failed to load rooms:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadRooms()
+  }, [])
 
   return (
     <PhoneFrame>
@@ -32,25 +49,33 @@ export function HomeScreen() {
             </span>
           </div>
           <div className="h-[18px]" />
-          <RoomHomeCard
-            title={room.name}
-            location={room.location}
-            budget={budgetResult.totalBudget}
-            spent={spent}
-            memberCount={room.memberCount}
-            status="진행 중"
-            onTap={() => navigate(`/room/${room.no}`)}
-          />
-          <div className="h-3.5" />
-          <RoomHomeCard
-            title="전시 보러 가요"
-            location="삼청동 블루보틀 근처"
-            budget={100000}
-            spent={14000}
-            memberCount={5}
-            status="예산 확정"
-            onTap={() => navigate(`/room/${room.no}`)}
-          />
+
+          {isLoading ? (
+            <div className="flex justify-center py-10 text-sub font-semibold">
+              방 목록을 불러오는 중...
+            </div>
+          ) : rooms.length > 0 ? (
+            <div className="flex flex-col gap-3.5">
+              {rooms.map((room) => (
+                <RoomHomeCard
+                  key={room.no}
+                  title={room.name}
+                  location={room.location}
+                  budget={room.budget || 0}
+                  spent={room.spent || 0}
+                  memberCount={room.memberCount}
+                  status={room.status || '진행 중'}
+                  onTap={() => navigate(`/room/${room.no}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-[158px] flex-col items-center justify-center rounded-card border-2 border-dashed border-muted text-sub">
+              <p className="font-bold">참여 중인 방이 없어요.</p>
+              <p className="mt-1 text-sm">새로운 방을 만들어보세요!</p>
+            </div>
+          )}
+
           <div className="h-3.5" />
           <button
             type="button"

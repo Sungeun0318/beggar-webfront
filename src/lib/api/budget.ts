@@ -48,3 +48,20 @@ export async function getBudgetResult(roomNo: number): Promise<BudgetResult> {
   )
   return response.data
 }
+
+export async function downloadBudgetExcel(roomNo: number): Promise<void> {
+  if (MOCK.budget) {
+    console.log('Mock: Downloading Excel for room', roomNo)
+    return
+  }
+
+  const blob = await client.blob(`/rooms/${roomNo}/budget/excel`)
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', `budget_result_${roomNo}.xlsx`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}

@@ -40,6 +40,15 @@ export function ReceiptRegisterScreen() {
   const [selectedStore, setSelectedStore] = useState<LocationSearchResult | null>(null)
   const [showResults, setShowResults] = useState(false)
 
+  useEffect(() => {
+    getRoom(roomNo).then((data) => {
+      if (data.status === 'ENDED') {
+        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+        navigate(-1)
+      }
+    })
+  }, [roomNo, navigate])
+
   const modeTitle = '통합 영수증'
   const modeDescription =
     '한 식당이나 장소에서 한 번에 결제한 영수증을 등록해요.'
@@ -100,7 +109,6 @@ export function ReceiptRegisterScreen() {
       attempts++
       try {
         const detail = await getReceiptDetail(targetRoomNo, receiptId)
-        console.log(`[OCR 폴링 ${attempts}/${maxAttempts}]`, detail)
         
         // 분석 완료 조건 완화: SUCCESS 상태이거나, 실제 데이터(가게명 또는 금액)가 들어왔을 때
         const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''

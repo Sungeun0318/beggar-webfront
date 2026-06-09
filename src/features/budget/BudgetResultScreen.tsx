@@ -6,7 +6,7 @@ import { AppHeaderTitled } from '../../components/AppHeader'
 import { InfoCard } from '../../components/InfoCard'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
-import { getBudgetResult } from '../../lib/api/budget'
+import { getBudgetResult, downloadBudgetExcel } from '../../lib/api/budget'
 import { money } from '../../lib/format'
 import type { BudgetResult } from '../../types'
 import { colors, radii, spacing } from '../../theme/tokens'
@@ -136,9 +136,29 @@ export function BudgetResultScreen() {
           <InfoCard Icon={Lock} title="개인 예산은 익명으로 보호돼요" />
           <div className="h-6" />
           <PrimaryButton
-            label="추천 보기"
-            onTap={() => navigate(`/recommend?roomNo=${roomNo}`)}
+            label="거지방 입장하기"
+            onTap={() => navigate(`/room/${roomNo}`)}
           />
+          <div className="h-3" />
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await downloadBudgetExcel(Number(roomNo))
+              } catch (error) {
+                console.error('Excel download failed:', error)
+                alert('엑셀 다운로드에 실패했습니다.')
+              }
+            }}
+            className="flex h-[60px] w-full items-center justify-center rounded-card text-base font-semibold border border-border"
+            style={{
+              backgroundColor: colors.bg,
+              color: colors.sub,
+              letterSpacing: -0.31,
+            }}
+          >
+            📊 엑셀로 내보내기
+          </button>
           <div style={{ height: spacing.bottomSafe }} />
         </section>
       </main>

@@ -63,6 +63,15 @@ export function ReceiptSplitScreen() {
     toEqualSplit(initialTotal).map((s) => String(s.amount)),
   )
 
+  useEffect(() => {
+    getRoom(roomNo).then((data) => {
+      if (data.status === 'ENDED') {
+        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+        navigate(-1)
+      }
+    })
+  }, [roomNo, navigate])
+
   const splitTotal = useMemo(
     () => splits.reduce((sum, split) => sum + split.amount, 0),
     [splits],
