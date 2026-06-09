@@ -57,7 +57,7 @@ export function CommunityChatScreen() {
     void getChats().then(setChats)
 
     // WebSocket 연결 및 구독
-    wsClient.connect().then(() => {
+    wsClient.connect(() => {
       wsClient.subscribe('/sub/chats', (msg) => {
         const receivedChat: RoomFreeChat = JSON.parse(msg.body)
         setChats((prev) => {
@@ -77,8 +77,8 @@ export function CommunityChatScreen() {
     const nextMessage = message.trim()
     if (!nextMessage) return
 
-    // WebSocket을 통해 메시지 전송
-    wsClient.publish('/pub/chats', { content: nextMessage })
+    // API를 통해 메시지 전송 (WebSocket publish 대신 REST API 사용)
+    void sendChat(nextMessage)
     
     setMessage('')
   }
