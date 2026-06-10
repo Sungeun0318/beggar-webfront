@@ -1,19 +1,26 @@
 import {
   Award,
   Camera,
+  Check,
   ChevronRight,
   Loader2,
   ReceiptText,
   User,
+  X,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
-import { getCurrentUser, updateProfileImage, uploadProfileImage } from '../../lib/api/auth'
+import {
+  getCurrentUser,
+  updateNickname,
+  updateProfileImage,
+  uploadProfileImage,
+} from '../../lib/api/auth'
 import { currentUser } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
 import type { User as UserType } from '../../types'
@@ -64,33 +71,86 @@ export function MyPageScreen() {
   const navigate = useNavigate()
   const imageInputRef = useRef<HTMLInputElement>(null)
   const [user, setUser] = useState<UserType>(() => getStoredUser())
+  const [nicknameDraft, setNicknameDraft] = useState(() => getStoredUser().name)
+  const [isEditingNickname, setIsEditingNickname] = useState(false)
+  const [isSavingNickname, setIsSavingNickname] = useState(false)
+  const [nicknameError, setNicknameError] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   useEffect(() => {
     let ignore = false
 
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
-      console.warn('토큰이 없습니다. 로그인 페이지로 이동합니다.')
-      // navigate('/login') // 필요시 주석 해제하여 자동 리다이렉트
-    }
-
     getCurrentUser()
       .then((data) => {
-        if (!ignore) setUser((prev) => ({ ...prev, ...data }))
+        if (ignore) return
+        setUser((prev) => ({ ...prev, ...data }))
+        setNicknameDraft(data.name)
       })
       .catch(() => {
-        if (!ignore) setUser(getStoredUser())
+        if (!ignore) {
+          const storedUser = getStoredUser()
+          setUser(storedUser)
+          setNicknameDraft(storedUser.name)
+        }
       })
 
     return () => {
       ignore = true
     }
-  }, [navigate])
+  }, [])
 
-  const handleProfileImageChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const requireLogin = () => {
+    if (localStorage.getItem('accessToken')) return true
+
+    alert('로그인 정보가 없습니다. 다시 로그인해 주세요.')
+    navigate('/login')
+    return false
+  }
+
+  const cancelNicknameEdit = () => {
+    setNicknameDraft(user.name)
+    setNicknameError('')
+    setIsEditingNickname(false)
+  }
+
+  const saveNickname = async () => {
+    const nextNickname = nicknameDraft.trim()
+    if (!nextNickname || isSavingNickname) return
+
+    if (nextNickname === user.name) {
+      setIsEditingNickname(false)
+      setNicknameError('')
+      return
+    }
+
+    if (!requireLogin()) return
+
+    setIsSavingNickname(true)
+    setNicknameError('')
+
+    try {
+      const updatedUser = await updateNickname(nextNickname)
+      setUser((prev) => ({ ...prev, ...updatedUser }))
+      setNicknameDraft(updatedUser.name)
+      setIsEditingNickname(false)
+    } catch (error) {
+      if (!localStorage.getItem('accessToken')) {
+        alert('인증이 만료되었습니다. 다시 로그인해 주세요.')
+        navigate('/login')
+        return
+      }
+
+      setNicknameError(
+        error instanceof Error
+          ? error.message
+          : '닉네임 변경에 실패했습니다. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsSavingNickname(false)
+    }
+  }
+
+  const handleProfileImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -100,35 +160,21 @@ export function MyPageScreen() {
       return
     }
 
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
-      alert('로그인 정보가 없습니다. 다시 로그인해 주세요.')
-      navigate('/login')
-      return
-    }
+    if (!requireLogin()) return
 
     setIsUploadingImage(true)
-    console.log('업로드 시작 - 토큰 상태:', !!token)
 
     try {
-      // 업로드 중에는 로컬 미리보기를 보여줍니다.
       const localPreviewUrl = URL.createObjectURL(file)
       setUser((prev) => ({ ...prev, profileImageUrl: localPreviewUrl }))
 
       try {
         const imageUrl = await uploadProfileImage(file)
-        console.log('S3 업로드 성공, Key:', imageUrl)
-
         const updatedUser = await updateProfileImage(imageUrl)
-        console.log('DB 업데이트 성공:', updatedUser)
-
-        // 중요: imageUrl(파일명)이 아닌 서버에서 다시 받아온 updatedUser 정보를 사용합니다.
         setUser((prev) => ({ ...prev, ...updatedUser }))
-        alert('프로필 사진이 성공적으로 저장되었습니다.')
       } catch (error) {
-        console.error('프로필 이미지 저장 과정 에러:', error)
+        console.error('Profile image update failed:', error)
 
-        // 토큰이 삭제되었는지 확인 (ApiError 401 시 client.ts에서 삭제함)
         if (!localStorage.getItem('accessToken')) {
           alert('인증이 만료되었습니다. 다시 로그인해 주세요.')
           navigate('/login')
@@ -142,12 +188,17 @@ export function MyPageScreen() {
         URL.revokeObjectURL(localPreviewUrl)
       }
     } catch (error) {
-      console.error('이미지 처리 에러:', error)
+      console.error('Image processing failed:', error)
       alert('이미지를 처리하지 못했습니다.')
     } finally {
       setIsUploadingImage(false)
     }
   }
+
+  const canSaveNickname =
+    nicknameDraft.trim().length > 0 &&
+    nicknameDraft.trim() !== user.name &&
+    !isSavingNickname
 
   return (
     <PhoneFrame>
@@ -155,7 +206,7 @@ export function MyPageScreen() {
         <AppHeaderBrand title="마이페이지" showNotification={false} />
         <section className="px-pageH pt-2" style={{ paddingBottom: spacing.bottomSafe }}>
           <div
-            className="flex h-[98px] items-center rounded-card border bg-accentBg p-3"
+            className="flex min-h-[112px] items-center rounded-card border bg-accentBg p-3"
             style={{ borderColor: colors.canvas, borderWidth: 0.65 }}
           >
             <button
@@ -191,18 +242,77 @@ export function MyPageScreen() {
             />
             <div className="w-4" />
             <div className="min-w-0 flex-1">
-              <p className="truncate">
-                <span className="text-[22px] font-black text-text">
-                  {user.name}
-                </span>
-                <span className="text-base font-medium text-sub"> 님</span>
-              </p>
+              <div className="flex min-h-8 items-center gap-2">
+                {isEditingNickname ? (
+                  <input
+                    value={nicknameDraft}
+                    onChange={(event) => {
+                      setNicknameDraft(event.target.value)
+                      setNicknameError('')
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') void saveNickname()
+                      if (event.key === 'Escape') cancelNicknameEdit()
+                    }}
+                    disabled={isSavingNickname}
+                    autoFocus
+                    maxLength={20}
+                    className="min-w-0 flex-1 rounded-compact border bg-white px-3 py-1.5 text-lg font-black text-text outline-none"
+                    style={{ borderColor: nicknameError ? colors.danger : colors.canvas }}
+                    aria-label="닉네임"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNicknameDraft(user.name)
+                      setNicknameError('')
+                      setIsEditingNickname(true)
+                    }}
+                    className="min-w-0 flex-1 truncate text-left text-[22px] font-black text-text hover:text-blue-600 hover:underline focus-visible:text-blue-600 focus-visible:underline focus-visible:outline-none"
+                    aria-label="닉네임 수정"
+                  >
+                    {user.name}
+                  </button>
+                )}
+                {isEditingNickname ? (
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={saveNickname}
+                      disabled={!canSaveNickname}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-accent disabled:bg-border"
+                      aria-label="닉네임 저장"
+                    >
+                      {isSavingNickname ? (
+                        <Loader2 className="animate-spin" size={16} color="#fff" />
+                      ) : (
+                        <Check aria-hidden="true" size={16} color="#fff" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelNicknameEdit}
+                      disabled={isSavingNickname}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-white disabled:opacity-60"
+                      aria-label="닉네임 수정 취소"
+                    >
+                      <X aria-hidden="true" size={16} color={colors.sub} />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <p
                 className="mt-[5px] truncate text-sm font-medium text-sub"
                 style={{ letterSpacing: -0.31 }}
               >
                 {user.email}
               </p>
+              {nicknameError && (
+                <p className="mt-1 text-[12px] font-semibold text-danger">
+                  {nicknameError}
+                </p>
+              )}
             </div>
           </div>
           <div className="h-6" />

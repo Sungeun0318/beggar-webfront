@@ -21,6 +21,8 @@ type LoginData = {
   refreshToken?: string
   userNo: number
   userName: string
+  email?: string
+  profileImageUrl?: string | null
 }
 
 type UserResponse = {
@@ -116,9 +118,28 @@ export async function getCurrentUser(): Promise<User> {
   localStorage.setItem("userEmail", user.email)
   if (user.profileImageUrl) {
     localStorage.setItem("profileImageUrl", user.profileImageUrl)
+  } else {
+    localStorage.removeItem("profileImageUrl")
   }
 
   return user
+}
+
+export async function updateNickname(userName: string): Promise<User> {
+  const nextUserName = userName.trim()
+  const user = localUser()
+
+  if (MOCK.auth) {
+    localStorage.setItem("userName", nextUserName)
+    return { ...user, name: nextUserName }
+  }
+
+  await client.patch<ApiResponse<void>>("/users/me", {
+    userName: nextUserName,
+    profileImageUrl: user.profileImageUrl ?? null,
+  })
+
+  return getCurrentUser()
 }
 
 export async function updateProfileImage(profileImageUrl: string): Promise<User> {
@@ -205,6 +226,12 @@ export async function loginWithKakaoCode(
     localStorage.setItem("accessToken", response.data.accessToken)
     localStorage.setItem("userNo", response.data.userNo.toString())
     localStorage.setItem("userName", response.data.userName)
+    if (response.data.email) {
+      localStorage.setItem("userEmail", response.data.email)
+    }
+    if (response.data.profileImageUrl) {
+      localStorage.setItem("profileImageUrl", response.data.profileImageUrl)
+    }
     if (response.data.refreshToken) {
       localStorage.setItem("refreshToken", response.data.refreshToken)
     }
@@ -212,9 +239,15 @@ export async function loginWithKakaoCode(
     console.error("Kakao Login failed: Access token not found in response", response)
   }
 
+  const freshUser = await getCurrentUser().catch(() => null)
+  if (freshUser) {
+    return freshUser
+  }
+
   return {
     no: response.data.userNo,
     name: response.data.userName,
-    email: `user-${response.data.userNo}@kakao.local`,
+    email: response.data.email ?? `user-${response.data.userNo}@kakao.local`,
+    profileImageUrl: response.data.profileImageUrl ?? undefined,
   }
 }
