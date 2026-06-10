@@ -8,22 +8,22 @@ import { RoundIcon } from '../../components/RoundIcon'
 import { SectionTitle } from '../../components/SectionTitle'
 import { softBox } from '../../components/ui/softBox'
 import { money } from '../../lib/format'
-import { members } from '../../mocks'
 import { searchLocations } from '../../lib/api/locations'
 import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
-import { getRoom } from '../../lib/api/rooms'
+import { getRoom, getRoomMembers } from '../../lib/api/rooms'
 import { colors, gradients, radii, spacing } from '../../theme/tokens'
-import type { LocationSearchResult } from '../../types'
+import type { LocationSearchResult, Member } from '../../types'
 
 const initialTotal = 0
 
 type SplitMode = 'equal' | 'custom'
 
-function toEqualSplit(total: number) {
-  const base = Math.floor(total / members.length)
-  const remainder = total - base * members.length
+function calculateEqualSplit(total: number, roomMembers: Member[]) {
+  if (roomMembers.length === 0) return []
+  const base = Math.floor(total / roomMembers.length)
+  const remainder = total - base * roomMembers.length
 
-  return members.map((member, index) => ({
+  return roomMembers.map((member, index) => ({
     name: member.name,
     amount: base + (index === 0 ? remainder : 0),
   }))
@@ -38,6 +38,7 @@ export function ReceiptSplitScreen() {
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
   const [ocrLoading, setOcrLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeInputMethod, setActiveInputMethod] = useState<'CAMERA' | 'GALLERY' | 'MANUAL'>('MANUAL')
@@ -45,10 +46,11 @@ export function ReceiptSplitScreen() {
   // OCR 확인용 임시 상태
   const [pendingOcrResult, setPendingOcrResult] = useState<{ storeName: string; amount: number } | null>(null)
 
+  const [roomMembers, setRoomMembers] = useState<Member[]>([])
   const [storeName, setStoreName] = useState('')
   const [totalAmount, setTotalAmount] = useState(initialTotal)
   const [mode, setMode] = useState<SplitMode>('equal')
-  const [splits, setSplits] = useState(() => toEqualSplit(initialTotal))
+  const [splits, setSplits] = useState<Array<{ name: string; amount: number }>>([])
 
   // 검색 관련 상태
   const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([])
@@ -60,17 +62,33 @@ export function ReceiptSplitScreen() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editingTotal, setEditingTotal] = useState(false)
   const [draftTotal, setDraftTotal] = useState(String(initialTotal))
-  const [draftSplits, setDraftSplits] = useState<string[]>(() =>
-    toEqualSplit(initialTotal).map((s) => String(s.amount)),
-  )
+  const [draftSplits, setDraftSplits] = useState<string[]>([])
 
   useEffect(() => {
-    getRoom(roomNo).then((data) => {
-      if (data.status === 'ENDED') {
-        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
-        navigate(-1)
+    async function init() {
+      try {
+        const [roomData, membersData] = await Promise.all([
+          getRoom(roomNo),
+          getRoomMembers(roomNo)
+        ])
+        
+        if (roomData.status === 'ENDED') {
+          alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+          navigate(-1)
+          return
+        }
+
+        setRoomMembers(membersData)
+        const initialSplits = calculateEqualSplit(initialTotal, membersData)
+        setSplits(initialSplits)
+        setDraftSplits(initialSplits.map(s => String(s.amount)))
+      } catch (error) {
+        console.error('초기 데이터 로딩 실패:', error)
+      } finally {
+        setLoading(false)
       }
-    })
+    }
+    init()
   }, [roomNo, navigate])
 
   const splitTotal = useMemo(
@@ -105,7 +123,7 @@ export function ReceiptSplitScreen() {
 
   const applyEqualSplit = (nextTotal = totalAmount) => {
     setMode('equal')
-    const nextSplits = toEqualSplit(nextTotal)
+    const nextSplits = calculateEqualSplit(nextTotal, roomMembers)
     setSplits(nextSplits)
     setDraftSplits(nextSplits.map((s) => String(s.amount)))
   }
@@ -146,7 +164,7 @@ export function ReceiptSplitScreen() {
     }
 
     let attempts = 0
-    const maxAttempts = 30
+    const maxAttempts = 50
 
     const interval = setInterval(async () => {
       attempts++
@@ -206,6 +224,11 @@ export function ReceiptSplitScreen() {
       console.error('영수증 처리 실패:', error)
       setOcrLoading(false)
       alert('영수증 업로드에 실패했습니다.')
+    } finally {
+      // 파일 입력 초기화 (같은 사진을 다시 선택해도 onChange가 발생하도록)
+      if (event.target) {
+        event.target.value = ''
+      }
     }
   }
 
@@ -237,7 +260,7 @@ export function ReceiptSplitScreen() {
       } else {
         await createReceipt(roomNo, payload)
       }
-      navigate('/receipts')
+      navigate(`/room/${roomNo}`)
     } catch (error) {
       console.error('영수증 등록 실패:', error)
       alert('영수증 등록에 실패했습니다.')
@@ -274,6 +297,16 @@ export function ReceiptSplitScreen() {
     })
 
     setPendingOcrResult(null)
+  }
+
+  if (loading) {
+    return (
+      <PhoneFrame height={930}>
+        <main className="flex h-full items-center justify-center bg-bg">
+          <Loader2 className="animate-spin" size={48} color={colors.accent} />
+        </main>
+      </PhoneFrame>
+    )
   }
 
   return (
