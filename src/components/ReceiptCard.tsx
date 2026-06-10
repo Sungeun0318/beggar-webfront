@@ -10,6 +10,7 @@ type ReceiptCardProps = {
   image?: string
   title: string
   amount: string
+  onClick?: () => void
 }
 
 function ReceiptImage({ src }: { src?: string }) {
@@ -32,9 +33,14 @@ export function ReceiptCard({
   image,
   title,
   amount,
+  onClick,
 }: ReceiptCardProps) {
   return (
-    <div className="h-[138px] p-[17px]" style={softBox({ radius: radii.card })}>
+    <div 
+      className="h-[138px] p-[17px] transition-opacity active:opacity-70 cursor-pointer" 
+      style={softBox({ radius: radii.card })}
+      onClick={onClick}
+    >
       <div className="flex items-center">
         <span className="text-xs font-semibold text-lightSub">{date}</span>
         <div className="flex-1" />

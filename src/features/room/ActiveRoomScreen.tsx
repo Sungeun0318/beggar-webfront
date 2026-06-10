@@ -8,6 +8,8 @@ import {
   Trophy,
   WalletCards,
   Loader2,
+  X,
+  MapPin,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -19,11 +21,12 @@ import { SummaryRow } from '../../components/SummaryRow'
 import { getBudgetResult } from '../../lib/api/budget'
 import { getRecommendation } from '../../lib/api/recommendation'
 import { getRoom, closeRoom } from '../../lib/api/rooms'
+import { getRoomReceipts } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
-import { receipts, room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
-import { colors, radii } from '../../theme/tokens'
+import { room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
+import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { BudgetResult, RecommendedPlace, Room } from '../../types'
+import type { BudgetResult, RecommendedPlace, Room, Receipt } from '../../types'
 
 const fallbackTags = ['한식', '양식', '일식', '중식', '기타 요식업']
 
@@ -77,6 +80,8 @@ export function ActiveRoomScreen() {
   
   const [room, setRoom] = useState<Room | null>(null)
   const [budget, setBudget] = useState<BudgetResult | null>(null)
+  const [receiptList, setReceiptList] = useState<Receipt[]>([])
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
   const [initialRecommendedPlaces, setInitialRecommendedPlaces] = useState<RecommendedPlace[]>([])
@@ -89,12 +94,14 @@ export function ActiveRoomScreen() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [roomData, budgetData] = await Promise.all([
+        const [roomData, budgetData, receiptData] = await Promise.all([
           getRoom(roomNo),
           getBudgetResult(roomNo).catch(() => null), // 예산이 아직 없을 수 있음
+          getRoomReceipts(roomNo).catch(() => []),
         ])
         setRoom(roomData)
         setBudget(budgetData)
+        setReceiptList(receiptData)
         setSelectedTag(roomData.tags[0] || fallbackTags[0])
       } catch (error) {
         console.error('Failed to fetch room data:', error)
@@ -163,7 +170,7 @@ export function ActiveRoomScreen() {
   const displayRoom = room || mockRoom
   const displayBudget = budget || mockBudgetResult
   const total = displayBudget.totalBudget
-  const spent = receipts[0].amount + receipts[1].amount
+  const spent = receiptList.reduce((sum, r) => sum + (r.amount || (r as any).totalAmount || 0), 0)
   const remaining = total - spent
   const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
   const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
@@ -296,13 +303,29 @@ export function ActiveRoomScreen() {
             </button>
           )}
           <div className="h-3.5" />
-          <ReceiptCard
-            date={receipts[0].date}
-            room={receipts[0].room}
-            image="/assets/images/figma/receipt_food.png"
-            title={receipts[0].title}
-            amount={`${money(receipts[0].amount)}원`}
-          />
+          <div className="space-y-3">
+            {receiptList.length > 0 ? (
+              receiptList.map((receipt, index) => (
+                <div key={receipt.id || index} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
+                  <ReceiptCard
+                    date={receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
+                    room={receipt.room || displayRoom.name}
+                    image={receipt.image || (receipt as any).imageUrl}
+                    title={receipt.title || (receipt as any).storeName || '이름 없는 지출'}
+                    amount={`${money(receipt.amount || (receipt as any).totalAmount || 0)}원`}
+                  />
+                </div>
+              ))
+            ) : (
+              <div 
+                className="flex h-[96px] w-full flex-col items-center justify-center rounded-card border border-border bg-white text-sub"
+                onClick={() => navigate(`/receipts/register?roomNo=${roomNo}`)}
+              >
+                <p className="text-sm font-bold">등록된 영수증이 없어요.</p>
+                <p className="mt-1 text-[11px] font-semibold">첫 영수증을 등록해보세요!</p>
+              </div>
+            )}
+          </div>
           <div className="h-6" />
           <section
             className="p-[18px]"
@@ -429,6 +452,70 @@ export function ActiveRoomScreen() {
           <div className="h-7" />
         </section>
         {displayRoom.status !== 'ENDED' && <RoomReceiptBar roomNo={roomNo} />}
+
+        {/* 영수증 상세 중앙 팝업 */}
+        {selectedReceipt && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-6"
+            onClick={() => setSelectedReceipt(null)}
+          >
+            <div 
+              className="w-full max-w-[360px] rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in duration-300 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative w-full bg-white flex items-center justify-center overflow-hidden border-b border-border/50" style={{ minHeight: '260px', maxHeight: '50vh' }}>
+                <img
+                  src={selectedReceipt.image || (selectedReceipt as any).imageUrl}
+                  alt="영수증 원본"
+                  className="w-full h-auto max-h-[50vh] object-contain"
+                />
+                <button
+                  onClick={() => setSelectedReceipt(null)}
+                  className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-black/10 text-white backdrop-blur-sm"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-[20px] font-black text-text leading-tight flex-1">
+                    {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없는 지출'}
+                  </h3>
+                  <span className="text-[17px] font-black text-accent whitespace-nowrap">
+                    {money(selectedReceipt.amount || (selectedReceipt as any).totalAmount || 0)}원
+                  </span>
+                </div>
+                
+                <div className="mt-5 space-y-3.5">
+                  <div className="flex items-start">
+                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                      <MapPin size={12} color={colors.accent} />
+                    </div>
+                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                      {selectedReceipt.address || '주소 정보가 없습니다.'}
+                    </p>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                      <ReceiptText size={12} color={colors.accent} />
+                    </div>
+                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                      등록일: {selectedReceipt.date || (selectedReceipt as any).createdAt?.slice(0, 16).replaceAll('-', '.').replace('T', ' ') || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedReceipt(null)}
+                  className="mt-8 h-13 w-full rounded-2xl bg-accent text-[16px] font-bold text-white shadow-lg shadow-accent/20 active:scale-[0.98] transition-transform"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )
