@@ -4,6 +4,7 @@ export const currentUser: User = {
   no: 3,
   name: '거지판다',
   email: 'flutter_dev03@kakao.com',
+  profileImageUrl: '',
 }
 
 export const room: Room = {
