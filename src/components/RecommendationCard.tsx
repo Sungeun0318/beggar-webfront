@@ -23,9 +23,13 @@ function ImageBox({ src, size }: { src?: string; size: number }) {
     )
   }
 
+  const imageSrc = src.startsWith('/') || src.startsWith('http')
+    ? src
+    : `/${src}`
+
   return (
     <img
-      src={src}
+      src={imageSrc}
       alt=""
       className="shrink-0 rounded-compact object-cover"
       style={{ width: size, height: size }}

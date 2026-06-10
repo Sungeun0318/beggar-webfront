@@ -8,7 +8,8 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt, deleteReceipt } from '../../lib/api/receipts'
+import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
+import { getRoom } from '../../lib/api/rooms'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { LocationSearchResult } from '../../types'
@@ -39,6 +40,15 @@ export function ReceiptRegisterScreen() {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedStore, setSelectedStore] = useState<LocationSearchResult | null>(null)
   const [showResults, setShowResults] = useState(false)
+
+  useEffect(() => {
+    getRoom(roomNo).then((data) => {
+      if (data.status === 'ENDED') {
+        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+        navigate(-1)
+      }
+    })
+  }, [roomNo, navigate])
 
   const modeTitle = '통합 영수증'
   const modeDescription =

@@ -17,14 +17,31 @@ import { ReceiptCard } from '../../components/ReceiptCard'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { SummaryRow } from '../../components/SummaryRow'
 import { getBudgetResult } from '../../lib/api/budget'
-import { getRoom } from '../../lib/api/rooms'
+import { getRecommendation } from '../../lib/api/recommendation'
+import { getRoom, closeRoom } from '../../lib/api/rooms'
 import { money } from '../../lib/format'
 import { receipts, room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { BudgetResult, Room } from '../../types'
+import type { BudgetResult, RecommendedPlace, Room } from '../../types'
 
-const tags = ['한식', '양식', '일식', '중식', '기타 요식업']
+const fallbackTags = ['한식', '양식', '일식', '중식', '기타 요식업']
+
+function tagColors(category: string) {
+  if (category.includes('카페')) {
+    return { bg: colors.tagBgCafe, fg: colors.tagFgCafe }
+  }
+  if (category.includes('놀거리')) {
+    return { bg: colors.tagBgPlay, fg: colors.tagFgPlay }
+  }
+  return { bg: colors.tagBgFood, fg: colors.danger }
+}
+
+function placeAmount(place: RecommendedPlace) {
+  return place.expectedPrice == null
+    ? '금액 정보 없음'
+    : `1인 ${money(place.expectedPrice)}원`
+}
 
 function RoomReceiptBar({ roomNo }: { roomNo: number }) {
   const navigate = useNavigate()
@@ -62,6 +79,12 @@ export function ActiveRoomScreen() {
   const [budget, setBudget] = useState<BudgetResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
+  const [initialRecommendedPlaces, setInitialRecommendedPlaces] = useState<RecommendedPlace[]>([])
+  const [courseRecommendedPlaces, setCourseRecommendedPlaces] = useState<RecommendedPlace[]>([])
+  const [initialRecommendationLoading, setInitialRecommendationLoading] = useState(false)
+  const [courseRecommendationLoading, setCourseRecommendationLoading] = useState(false)
+  const [initialRecommendationError, setInitialRecommendationError] = useState<string | null>(null)
+  const [courseRecommendationError, setCourseRecommendationError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -72,6 +95,7 @@ export function ActiveRoomScreen() {
         ])
         setRoom(roomData)
         setBudget(budgetData)
+        setSelectedTag(roomData.tags[0] || fallbackTags[0])
       } catch (error) {
         console.error('Failed to fetch room data:', error)
       } finally {
@@ -80,6 +104,51 @@ export function ActiveRoomScreen() {
     }
     fetchData()
   }, [roomNo])
+
+  useEffect(() => {
+    if (!room) {
+      return
+    }
+
+    const firstTag = room.tags[0] || fallbackTags[0]
+    setInitialRecommendationLoading(true)
+    setInitialRecommendationError(null)
+    getRecommendation(roomNo, {
+      tag: firstTag,
+      region: room.location,
+    })
+      .then((result) => {
+        setInitialRecommendedPlaces(result.places.slice(0, 3))
+      })
+      .catch((error) => {
+        console.error('Failed to fetch initial recommendations:', error)
+        setInitialRecommendedPlaces([])
+        setInitialRecommendationError('추천을 불러오지 못했어요.')
+      })
+      .finally(() => setInitialRecommendationLoading(false))
+  }, [room, roomNo])
+
+  useEffect(() => {
+    if (!room) {
+      return
+    }
+
+    setCourseRecommendationLoading(true)
+    setCourseRecommendationError(null)
+    getRecommendation(roomNo, {
+      tag: selectedTag,
+      region: room.location,
+    })
+      .then((result) => {
+        setCourseRecommendedPlaces(result.places.slice(0, 3))
+      })
+      .catch((error) => {
+        console.error('Failed to fetch course recommendations:', error)
+        setCourseRecommendedPlaces([])
+        setCourseRecommendationError('추천을 불러오지 못했어요.')
+      })
+      .finally(() => setCourseRecommendationLoading(false))
+  }, [room, roomNo, selectedTag])
 
   if (loading) {
     return (
@@ -96,6 +165,31 @@ export function ActiveRoomScreen() {
   const total = displayBudget.totalBudget
   const spent = receipts[0].amount + receipts[1].amount
   const remaining = total - spent
+  const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
+  const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
+
+  const userNo = Number(localStorage.getItem('userNo'))
+  const isOwner = userNo === displayRoom.ownerNo
+
+  const handleCloseRoom = async () => {
+    if (!window.confirm('정말로 방을 종료하시겠습니까?\n종료 후에는 영수증 등록 및 추천 서비스를 이용할 수 없습니다.')) {
+      return
+    }
+
+    try {
+      await closeRoom(roomNo)
+      alert('방이 성공적으로 종료되었습니다.')
+      // 상태 업데이트를 위해 방 정보를 다시 불러옴
+      const updatedRoom = await getRoom(roomNo)
+      setRoom(updatedRoom)
+    } catch (error: any) {
+      if (error.response?.data?.code === 'ROOM_ALREADY_ENDED') {
+        alert('이미 종료된 방입니다.')
+      } else {
+        alert('방 종료 중 오류가 발생했습니다.')
+      }
+    }
+  }
 
   return (
     <PhoneFrame>
@@ -113,7 +207,10 @@ export function ActiveRoomScreen() {
               className="text-center text-[21px] font-black text-text"
               style={{ letterSpacing: -0.7 }}
             >
-              {displayRoom.name}
+              {displayRoom.name}{' '}
+              {displayRoom.status === 'ENDED' && (
+                <span className="text-sm font-bold text-danger">(종료됨)</span>
+              )}
             </h1>
             <button
               type="button"
@@ -153,21 +250,51 @@ export function ActiveRoomScreen() {
               className="text-base font-medium text-text"
               style={{ letterSpacing: -0.71 }}
             >
-              오늘의 예산을 바탕으로 추천해보겠습니다.
+              {displayRoom.status === 'ENDED'
+                ? '종료된 방은 추천을 받을 수 없습니다.'
+                : '오늘의 예산을 바탕으로 추천해보겠습니다.'}
             </span>
           </div>
           <div className="h-1" />
-          <RecommendationCard
-            image="/assets/images/figma/reco_food.png"
-            tag="한식"
-            title="정성 한식 세트"
-            walk="도보 5분"
-            rating="★ 4.6 (128)"
-            amount="총 38,000원"
-            tagBg={colors.tagBgFood}
-            tagColor={colors.danger}
-            onMapTap={() => undefined}
-          />
+          {initialRecommendationLoading ? (
+            <div className="flex h-[146px] items-center justify-center rounded-card border border-border bg-white">
+              <Loader2 className="animate-spin" size={28} color={colors.accent} />
+            </div>
+          ) : initialRecommendationError ? (
+            <button
+              type="button"
+              onClick={openRecommendation}
+              className="flex h-[96px] w-full items-center justify-center rounded-card border border-border bg-white px-4 text-sm font-bold text-sub"
+            >
+              {initialRecommendationError}
+            </button>
+          ) : initialRecommendedPlaces.length > 0 ? (
+            initialRecommendedPlaces.slice(0, 1).map((place) => {
+              const tag = tagColors(place.category)
+              return (
+                <RecommendationCard
+                  key={place.storeId ?? place.name}
+                  image={place.thumbnailUrl}
+                  tag={place.category}
+                  title={place.name}
+                  walk={`${place.walkTime ?? '도보 정보 없음'} · ${place.address}`}
+                  rating={place.menuName ?? '추천 메뉴'}
+                  amount={placeAmount(place)}
+                  tagBg={tag.bg}
+                  tagColor={tag.fg}
+                  onMapTap={openRecommendation}
+                />
+              )
+            })
+          ) : (
+            <button
+              type="button"
+              onClick={openRecommendation}
+              className="flex h-[96px] w-full items-center justify-center rounded-card border border-border bg-white px-4 text-sm font-bold text-sub"
+            >
+              조건에 맞는 추천을 다시 찾아볼게요.
+            </button>
+          )}
           <div className="h-3.5" />
           <ReceiptCard
             date={receipts[0].date}
@@ -191,11 +318,13 @@ export function ActiveRoomScreen() {
               className="mt-1 text-[13px] font-semibold leading-[1.45] text-sub"
               style={{ letterSpacing: -0.23 }}
             >
-              태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.
+              {displayRoom.status === 'ENDED'
+                ? '종료된 방은 새로운 추천을 받을 수 없어요.'
+                : '태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.'}
             </p>
             <div className="h-4" />
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => {
+              {roomTags.map((tag) => {
                 const selected = selectedTag === tag
                 return (
                   <button
@@ -228,39 +357,78 @@ export function ActiveRoomScreen() {
               </span>
             </div>
             <div className="h-2.5" />
-            <div className="flex h-[118px] items-center rounded-card border border-border bg-accentBg p-3.5">
-              <div className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full bg-white">
-                <ReceiptText aria-hidden="true" size={28} color={colors.accent} />
-              </div>
-              <div className="w-[13px]" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black text-accent">
-                  착한가격 업소
-                </p>
-                <p className="mt-1 text-[17px] font-black text-text">
-                  명학 순두부
-                </p>
-                <p className="mt-[5px] text-xs font-bold text-sub">
-                  도보 6분 · 1인 8,000원
-                </p>
-                <p className="mt-1 text-xs font-extrabold text-darkSub">
-                  남은 예산 {money(remaining)}원으로 가능
-                </p>
-              </div>
-              <ChevronRight aria-hidden="true" color={colors.brown} />
+            <div className="space-y-2.5">
+              {courseRecommendationLoading ? (
+                <div className="flex h-[118px] items-center justify-center rounded-card border border-border bg-accentBg">
+                  <Loader2 className="animate-spin" size={26} color={colors.accent} />
+                </div>
+              ) : courseRecommendationError ? (
+                <button
+                  type="button"
+                  onClick={openRecommendation}
+                  className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
+                >
+                  {courseRecommendationError}
+                </button>
+              ) : courseRecommendedPlaces.slice(0, 2).map((place) => (
+                <button
+                  key={place.storeId ?? place.name}
+                  type="button"
+                  onClick={openRecommendation}
+                  className="flex h-[118px] w-full items-center rounded-card border border-border bg-accentBg p-3.5 text-left"
+                >
+                  <img
+                    src={place.thumbnailUrl}
+                    alt=""
+                    className="h-[58px] w-[58px] shrink-0 rounded-compact object-cover"
+                  />
+                  <div className="w-[13px]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-black text-accent">
+                      착한가격 업소
+                    </p>
+                    <p className="mt-1 truncate text-[17px] font-black text-text">
+                      {place.name}
+                    </p>
+                    <p className="mt-[5px] truncate text-xs font-bold text-sub">
+                      {place.walkTime ?? '도보 정보 없음'} · {placeAmount(place)}
+                    </p>
+                    <p className="mt-1 text-xs font-extrabold text-darkSub">
+                      남은 예산 {money(Math.max(remaining, 0))}원 기준
+                    </p>
+                  </div>
+                  <ChevronRight aria-hidden="true" color={colors.brown} />
+                </button>
+              ))}
+              {!courseRecommendationLoading && !courseRecommendationError && courseRecommendedPlaces.length <= 2 && (
+                <button
+                  type="button"
+                  onClick={openRecommendation}
+                  className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
+                >
+                  더 많은 추천 보러가기
+                </button>
+              )}
             </div>
           </section>
           <div className="h-5" />
-          <button
-            type="button"
-            className="h-[52px] w-full rounded-compact border border-border bg-white text-sm font-bold text-sub"
-            onClick={() => undefined}
-          >
-            오늘 방 종료하기
-          </button>
+          {isOwner && displayRoom.status !== 'ENDED' && (
+            <button
+              type="button"
+              className="h-[52px] w-full rounded-compact border border-border bg-white text-sm font-bold text-sub"
+              onClick={handleCloseRoom}
+            >
+              오늘 방 종료하기
+            </button>
+          )}
+          {displayRoom.status === 'ENDED' && (
+            <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-gray-100 text-sm font-bold text-gray-400">
+              종료된 방입니다
+            </div>
+          )}
           <div className="h-7" />
         </section>
-        <RoomReceiptBar roomNo={roomNo} />
+        {displayRoom.status !== 'ENDED' && <RoomReceiptBar roomNo={roomNo} />}
       </main>
     </PhoneFrame>
   )

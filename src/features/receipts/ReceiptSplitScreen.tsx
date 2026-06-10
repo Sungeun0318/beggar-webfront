@@ -11,6 +11,7 @@ import { money } from '../../lib/format'
 import { members } from '../../mocks'
 import { searchLocations } from '../../lib/api/locations'
 import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
+import { getRoom } from '../../lib/api/rooms'
 import { colors, gradients, radii, spacing } from '../../theme/tokens'
 import type { LocationSearchResult } from '../../types'
 
@@ -62,6 +63,15 @@ export function ReceiptSplitScreen() {
   const [draftSplits, setDraftSplits] = useState<string[]>(() =>
     toEqualSplit(initialTotal).map((s) => String(s.amount)),
   )
+
+  useEffect(() => {
+    getRoom(roomNo).then((data) => {
+      if (data.status === 'ENDED') {
+        alert('종료된 방에는 영수증을 등록할 수 없습니다.')
+        navigate(-1)
+      }
+    })
+  }, [roomNo, navigate])
 
   const splitTotal = useMemo(
     () => splits.reduce((sum, split) => sum + split.amount, 0),

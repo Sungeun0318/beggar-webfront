@@ -53,29 +53,57 @@ export function RecommendationScreen() {
   const [selectedPlace, setSelectedPlace] = useState<RecommendedPlace | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [recommendationError, setRecommendationError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getRoom(roomNo).then((roomData) => {
-      setRoom(roomData)
-      if (!selectedTag) setSelectedTag(roomData.tags[0] || "")
-      if (!selectedRegion) setSelectedRegion(roomData.location || "")
-    })
+    setLoading(true)
+    setRecommendationError(null)
+    getRoom(roomNo)
+      .then((roomData) => {
+        if (roomData.status === 'ENDED') {
+          alert('종료된 방은 추천을 받을 수 없습니다.')
+          navigate(-1)
+          return
+        }
+        setRoom(roomData)
+        setSelectedTag(roomData.tags[0] || "")
+        setSelectedRegion(roomData.location || "")
+        setSelectedRegionQuery(null)
+        setSelectedLat(null)
+        setSelectedLng(null)
+      })
+      .catch((error) => {
+        console.error("방 정보를 불러오지 못했어요.", error)
+        setRecommendationError("방 정보를 불러오지 못했어요.")
+        setLoading(false)
+      })
   }, [roomNo])
 
   useEffect(() => {
+    if (!room) {
+      return
+    }
+
     setLoading(true)
+    setRecommendationError(null)
     getRecommendation(roomNo, {
       tag: selectedTag,
       region: selectedRegionQuery ?? (selectedLat === null ? selectedRegion : undefined),
       lat: selectedLat ?? undefined,
       lng: selectedLng ?? undefined,
       radius: selectedLat === null ? undefined : nearbyRadius,
-    }).then((res) => {
-      setResult(res)
-      setLoading(false)
     })
-  }, [roomNo, selectedTag, selectedRegion, selectedRegionQuery, selectedLat, selectedLng])
+      .then((res) => {
+        setResult(res)
+      })
+      .catch((error) => {
+        console.error("추천 정보를 불러오지 못했어요.", error)
+        setResult(null)
+        setRecommendationError("추천 정보를 불러오지 못했어요.")
+      })
+      .finally(() => setLoading(false))
+  }, [room, roomNo, selectedTag, selectedRegion, selectedRegionQuery, selectedLat, selectedLng])
 
   const recommendationBudget = result?.recommendationBudget
   const budgetLabel =
@@ -141,7 +169,14 @@ export function RecommendationScreen() {
 
           <div className="h-[22px]" />
           
-          {loading ? (
+          {recommendationError ? (
+            <div
+              className="rounded-compact px-4 py-6 text-center text-sm font-semibold leading-6 text-sub"
+              style={softBox({ radius: radii.compact })}
+            >
+              {recommendationError}
+            </div>
+          ) : loading ? (
             <div className="flex py-10 justify-center">
               <Loader2 className="animate-spin text-accent" size={32} />
             </div>
@@ -189,8 +224,8 @@ export function RecommendationScreen() {
           </div>
           <div className="h-6" />
           <PrimaryButton
-            label="거지방 시작하기"
-            onTap={() => navigate(`/room/${roomNo}`)}
+            label="돌아가기"
+            onTap={() => navigate(-1)}
           />
           <div style={{ height: spacing.bottomSafe }} />
         </section>
