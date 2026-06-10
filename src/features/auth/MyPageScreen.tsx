@@ -20,6 +20,7 @@ import {
   updateNickname,
   updateProfileImage,
   uploadProfileImage,
+  withdraw,
 } from '../../lib/api/auth'
 import { currentUser } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
@@ -76,6 +77,7 @@ export function MyPageScreen() {
   const [isSavingNickname, setIsSavingNickname] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
 
   useEffect(() => {
     let ignore = false
@@ -192,6 +194,38 @@ export function MyPageScreen() {
       alert('이미지를 처리하지 못했습니다.')
     } finally {
       setIsUploadingImage(false)
+    }
+  }
+
+  const handleWithdraw = async () => {
+    if (isWithdrawing) return
+    if (!requireLogin()) return
+
+    const confirmed = window.confirm(
+      '회원 탈퇴 시 계정 정보가 삭제됩니다. 정말 탈퇴하시겠습니까?',
+    )
+    if (!confirmed) return
+
+    setIsWithdrawing(true)
+
+    try {
+      await withdraw()
+      alert('회원 탈퇴가 완료되었습니다.')
+      navigate('/login', { replace: true })
+    } catch (error) {
+      if (!localStorage.getItem('accessToken')) {
+        alert('인증이 만료되었습니다. 다시 로그인해 주세요.')
+        navigate('/login', { replace: true })
+        return
+      }
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : '회원 탈퇴에 실패했습니다. 다시 시도해 주세요.',
+      )
+    } finally {
+      setIsWithdrawing(false)
     }
   }
 
@@ -353,9 +387,14 @@ export function MyPageScreen() {
               로그아웃
             </button>
             <div className="h-4" />
-            <p className="text-left text-[13px] font-semibold text-sub/25">
-              탈퇴하기
-            </p>
+            <button
+              type="button"
+              onClick={handleWithdraw}
+              disabled={isWithdrawing}
+              className="text-left text-[13px] font-semibold text-sub/25 disabled:cursor-default disabled:opacity-60"
+            >
+              {isWithdrawing ? '탈퇴 처리 중' : '탈퇴하기'}
+            </button>
           </section>
         </section>
         <BottomNav />
