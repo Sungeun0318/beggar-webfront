@@ -49,8 +49,6 @@ export type Receipt = {
   totalAmount?: number
   amount: number
   address?: string
-  storeName?: string
-  totalAmount?: number
   createdAt?: string
   splits?: {
     roomMemberId?: number
