@@ -57,6 +57,11 @@ export async function createPost(request: {
   await client.post('/community/posts', request)
 }
 
+export async function deletePost(postId: number): Promise<void> {
+  // 실제 경로: DELETE /community/posts/{id}
+  await client.del(`/community/posts/${postId}`)
+}
+
 export async function createComment(
   postId: number,
   content: string,
