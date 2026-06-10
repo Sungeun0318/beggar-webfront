@@ -7,10 +7,10 @@ import type {
 import { client } from './client'
 
 export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
-  // 실제 경로: GET /api/community/posts
+  // 실제 경로: GET /community/posts
   try {
     const response = await client.get<{ data: RoomFreePost[] }>(
-      '/api/community/posts',
+      '/community/posts',
       keyword ? { keyword } : undefined,
     )
     return response.data
@@ -21,10 +21,10 @@ export async function getPosts(keyword?: string): Promise<RoomFreePost[]> {
 }
 
 export async function getPopularPosts(): Promise<RoomFreePost[]> {
-  // 실제 경로: GET /api/community/posts/popular
+  // 실제 경로: GET /community/posts/popular
   try {
     const response = await client.get<{ data: RoomFreePost[] }>(
-      '/api/community/posts/popular'
+      '/community/posts/popular'
     )
     return response.data
   } catch (error) {
@@ -36,10 +36,10 @@ export async function getPopularPosts(): Promise<RoomFreePost[]> {
 export async function getPostDetail(
   postId: number,
 ): Promise<RoomFreePostDetail> {
-  // 실제 경로: GET /api/community/posts/{id}
+  // 실제 경로: GET /community/posts/{id}
   try {
     const response = await client.get<{ data: RoomFreePostDetail }>(
-      `/api/community/posts/${postId}`,
+      `/community/posts/${postId}`,
     )
     return response.data
   } catch (error) {
@@ -53,23 +53,23 @@ export async function createPost(request: {
   content: string
   tag: string
 }): Promise<void> {
-  // 실제 경로: POST /api/community/posts
-  await client.post('/api/community/posts', request)
+  // 실제 경로: POST /community/posts
+  await client.post('/community/posts', request)
 }
 
 export async function createComment(
   postId: number,
   content: string,
 ): Promise<void> {
-  // 실제 경로: POST /api/community/posts/{id}/comments
-  await client.post(`/api/community/posts/${postId}/comments`, { content })
+  // 실제 경로: POST /community/posts/{id}/comments
+  await client.post(`/community/posts/${postId}/comments`, { content })
 }
 
 export async function getChats(): Promise<RoomFreeChat[]> {
-  // 실제 경로: GET /api/community/chats
+  // 실제 경로: GET /community/chats
   try {
     const response = await client.get<{ data: RoomFreeChat[] }>(
-      '/api/community/chats',
+      '/community/chats',
     )
     return response.data
   } catch (error) {
@@ -79,6 +79,6 @@ export async function getChats(): Promise<RoomFreeChat[]> {
 }
 
 export async function sendChat(message: string): Promise<void> {
-  // 실제 경로: POST /api/community/chats
-  await client.post('/api/community/chats', { content: message })
+  // 실제 경로: POST /community/chats
+  await client.post('/community/chats', { content: message })
 }
