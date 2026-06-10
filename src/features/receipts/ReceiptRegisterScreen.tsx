@@ -89,7 +89,7 @@ export function ReceiptRegisterScreen() {
     }
   }
 
-  const complete = () => navigate('/receipts')
+  const complete = () => navigate(`/room/${roomNo}`)
 
   // OCR 결과
   const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
