@@ -44,12 +44,15 @@ export function CommunityScreen() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState(tabs[1]) // 최신글(tabs[1])을 기본값으로 설정 권장 (백엔드 기본 정렬)
   const [posts, setPosts] = useState<RoomFreePost[]>([])
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
         let data: RoomFreePost[] = []
-        if (activeTab === '인기글') {
+        if (searchKeyword.trim()) {
+          data = await getPosts(searchKeyword.trim())
+        } else if (activeTab === '인기글') {
           data = await getPopularPosts()
         } else if (activeTab === '최신글') {
           data = await getPosts()
@@ -58,14 +61,17 @@ export function CommunityScreen() {
           const allPosts = await getPosts()
           data = allPosts.filter((post) => post.tag === activeTab)
         }
-        setPosts(data)
+        const uniquePosts = data.filter(
+          (post, index, self) => index === self.findIndex((p) => p.id === post.id)
+        )
+        setPosts(uniquePosts)
       } catch (err) {
         console.error('게시글 로딩 실패:', err)
       }
     }
 
     void fetchPosts()
-  }, [activeTab])
+  }, [activeTab, searchKeyword])
 
   return (
     <PhoneFrame>
@@ -82,9 +88,13 @@ export function CommunityScreen() {
             style={softBox()}
           >
             <Search aria-hidden="true" size={20} color={colors.placeholder} />
-            <span className="ml-3 text-[14px] font-semibold text-placeholder">
-              게시글, 채팅 검색
-            </span>
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="게시글 검색"
+              className="ml-3 flex-1 bg-transparent text-[14px] font-semibold text-text placeholder:text-placeholder focus:outline-none"
+            />
           </div>
 
           <button

@@ -1,5 +1,5 @@
 import { Send } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
@@ -51,6 +51,15 @@ export function CommunityChatScreen() {
   const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [chats, setChats] = useState<RoomFreeChat[]>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chats])
 
   useEffect(() => {
     const myName = localStorage.getItem('userName')
@@ -61,7 +70,10 @@ export function CommunityChatScreen() {
         ...chat,
         isMine: chat.sender === myName,
       }))
-      setChats(transformed)
+      const uniqueChats = transformed.filter(
+        (chat, index, self) => index === self.findIndex((c) => c.id === chat.id)
+      )
+      setChats(uniqueChats)
     })
 
     let subscription: { unsubscribe: () => void } | undefined
@@ -129,6 +141,7 @@ export function CommunityChatScreen() {
             {chats.map((chat) => (
               <ChatBubble key={chat.id} chat={chat} />
             ))}
+            <div ref={scrollRef} />
           </div>
         </section>
 
