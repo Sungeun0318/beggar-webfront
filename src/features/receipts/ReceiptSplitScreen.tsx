@@ -1,4 +1,4 @@
-import { Camera, Check, Image, Minus, Plus, Scissors, Users, Store, Search, Loader2, MapPin } from 'lucide-react'
+import { Camera, Check, Image, Minus, Plus, Scissors, Users, Store, Search, Loader2, MapPin, AlertCircle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -17,6 +17,39 @@ import type { LocationSearchResult, Member } from '../../types'
 const initialTotal = 0
 
 type SplitMode = 'equal' | 'custom'
+
+/**
+ * 두 문자열의 유사도를 측정합니다 (Levenshtein Distance 기반)
+ */
+function getLevenshteinDistance(a: string, b: string): number {
+  const tmp = []
+  for (let i = 0; i <= a.length; i++) tmp[i] = [i]
+  for (let j = 0; j <= b.length; j++) tmp[0][j] = j
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      tmp[i][j] = Math.min(
+        tmp[i - 1][j] + 1,
+        tmp[i][j - 1] + 1,
+        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      )
+    }
+  }
+  return tmp[a.length][b.length]
+}
+
+function isStoreNameSimilar(a: string, b: string): boolean {
+  if (!a || !b) return true
+  const cleanA = a.replace(/\s/g, '').toLowerCase()
+  const cleanB = b.replace(/\s/g, '').toLowerCase()
+  
+  if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true
+  
+  const distance = getLevenshteinDistance(cleanA, cleanB)
+  const maxLength = Math.max(cleanA.length, cleanB.length)
+  
+  // 길이의 40% 이하로 차이가 나면 유사한 것으로 판단
+  return distance <= maxLength * 0.4
+}
 
 function calculateEqualSplit(total: number, roomMembers: Member[]) {
   if (roomMembers.length === 0) return []
@@ -45,6 +78,15 @@ export function ReceiptSplitScreen() {
 
   // OCR 확인용 임시 상태
   const [pendingOcrResult, setPendingOcrResult] = useState<{ storeName: string; amount: number } | null>(null)
+  const [editedStoreName, setEditedStoreName] = useState<string>('')
+  const [editedAmount, setEditedAmount] = useState<string>('0')
+  const [isStoreMismatch, setIsStoreMismatch] = useState(false)
+
+  // 모달 전용 검색 상태
+  const [modalSearchResults, setModalSearchResults] = useState<LocationSearchResult[]>([])
+  const [isModalSearching, setIsModalSearching] = useState(false)
+  const [showModalResults, setShowModalResults] = useState(false)
+  const [modalSelectedStore, setModalSelectedStore] = useState<LocationSearchResult | null>(null)
 
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
   const [storeName, setStoreName] = useState('')
@@ -121,6 +163,30 @@ export function ReceiptSplitScreen() {
     return () => clearTimeout(timer)
   }, [storeName, selectedStore])
 
+  // 모달 내 가게 이름 입력 시 검색
+  useEffect(() => {
+    if (editedStoreName.length < 2 || (modalSelectedStore && modalSelectedStore.name === editedStoreName)) {
+      setModalSearchResults([])
+      setShowModalResults(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsModalSearching(true)
+      try {
+        const results = await searchLocations(editedStoreName)
+        setModalSearchResults(results)
+        setShowModalResults(results.length > 0)
+      } catch (error) {
+        console.error('모달 내 가게 검색 실패:', error)
+      } finally {
+        setIsModalSearching(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [editedStoreName, modalSelectedStore])
+
   const applyEqualSplit = (nextTotal = totalAmount) => {
     setMode('equal')
     const nextSplits = calculateEqualSplit(nextTotal, roomMembers)
@@ -180,10 +246,14 @@ export function ReceiptSplitScreen() {
           clearInterval(interval)
           
           const finalAmount = detail.totalAmount || (detail as any).amount || 0
+          const finalStore = hasStore ? detail.storeName! : ''
+          
           setPendingOcrResult({
-            storeName: hasStore ? detail.storeName! : '',
+            storeName: finalStore,
             amount: finalAmount,
           })
+          setEditedStoreName(finalStore)
+          setEditedAmount(String(finalAmount))
           
           setOcrLoading(false)
         }
@@ -278,25 +348,35 @@ export function ReceiptSplitScreen() {
   const handleConfirmOcr = () => {
     if (!pendingOcrResult) return
 
-    if (pendingOcrResult.storeName && !storeName) {
-      setStoreName(pendingOcrResult.storeName)
+    const finalAmountToAdd = Number(editedAmount.replace(/\D/g, '')) || 0
+    const finalStoreName = modalSelectedStore?.name || editedStoreName
+
+    // 첫 등록이거나 가게 이름이 유사한 경우에만 진행
+    if (!storeName || isStoreNameSimilar(storeName, finalStoreName) || isStoreMismatch) {
+      setStoreName(finalStoreName)
+      if (modalSelectedStore) setSelectedStore(modalSelectedStore)
+
+      const nextTotal = totalAmount + finalAmountToAdd
+      setTotalAmount(nextTotal)
+      setDraftTotal(String(nextTotal))
+      
+      // N분의 1 모드인 경우 분할 금액 업데이트
+      setSplits(currentSplits => {
+        const base = Math.floor(nextTotal / currentSplits.length)
+        const remainder = nextTotal - base * currentSplits.length
+        return currentSplits.map((member, index) => ({
+          ...member,
+          amount: base + (index === 0 ? remainder : 0),
+        }))
+      })
+
+      setPendingOcrResult(null)
+      setIsStoreMismatch(false)
+      setShowModalResults(false)
+    } else {
+      // 가게 이름이 너무 다른 경우 경고 상태로 전환
+      setIsStoreMismatch(true)
     }
-
-    const nextTotal = totalAmount + pendingOcrResult.amount
-    setTotalAmount(nextTotal)
-    setDraftTotal(String(nextTotal))
-    
-    // N분의 1 모드인 경우 분할 금액 업데이트
-    setSplits(currentSplits => {
-      const base = Math.floor(nextTotal / currentSplits.length)
-      const remainder = nextTotal - base * currentSplits.length
-      return currentSplits.map((member, index) => ({
-        ...member,
-        amount: base + (index === 0 ? remainder : 0),
-      }))
-    })
-
-    setPendingOcrResult(null)
   }
 
   if (loading) {
@@ -594,42 +674,97 @@ export function ReceiptSplitScreen() {
 
         {/* OCR 확인 모달 */}
         {pendingOcrResult && (
-          <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/50 px-6 backdrop-blur-[1px]">
-            <div className="w-full rounded-[24px] bg-white p-6 shadow-2xl">
+          <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/50 px-PageH backdrop-blur-[1px]">
+            <div className="w-full max-w-[340px] rounded-[24px] bg-white p-6 shadow-2xl overflow-visible">
               <div className="flex flex-col items-center">
                 <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-accentBg">
-                  <Store size={28} color={colors.accent} />
+                  {isStoreMismatch ? (
+                    <AlertCircle size={28} color={colors.danger} />
+                  ) : (
+                    <Store size={28} color={colors.accent} />
+                  )}
                 </div>
-                <h3 className="text-lg font-black text-text">영수증을 분석했어요!</h3>
-                <p className="mt-1 text-[13px] font-semibold text-sub">이 금액을 총액에 추가할까요?</p>
                 
-                <div className="my-6 flex w-full flex-col gap-2 rounded-2xl bg-muted p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-sub">가게명</span>
-                    <span className="text-sm font-extrabold text-text truncate max-w-[150px]">
-                      {pendingOcrResult.storeName || '알 수 없음'}
-                    </span>
+                <h3 className="text-lg font-black text-text text-center leading-tight">
+                  {isStoreMismatch ? '가게 이름이 다른 것 같아요' : '영수증을 분석했어요!'}
+                </h3>
+                <p className="mt-2 text-[13px] font-semibold text-sub text-center whitespace-pre-wrap">
+                  기계가 읽은 정보가 맞는지 확인하고 수정해주세요.
+                </p>
+                
+                <div className={`my-6 flex w-full flex-col gap-3 rounded-2xl p-4 ${isStoreMismatch ? 'bg-danger/5 border border-danger/10' : 'bg-muted'}`}>
+                  {/* 가게 이름 입력 & 검색 */}
+                  <div className="relative">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-sub">가게 이름</span>
+                      {isModalSearching && <Loader2 size={12} className="animate-spin text-accent" />}
+                    </div>
+                    <input
+                      type="text"
+                      value={editedStoreName}
+                      onChange={(e) => {
+                        setEditedStoreName(e.target.value)
+                        if (modalSelectedStore && e.target.value !== modalSelectedStore.name) {
+                          setModalSelectedStore(null)
+                        }
+                      }}
+                      placeholder="가게 이름을 입력하세요"
+                      className={`w-full bg-transparent text-sm font-extrabold outline-none border-b py-1 ${isStoreMismatch ? 'border-danger/30 text-danger focus:border-danger' : 'border-text/10 text-text focus:border-accent'}`}
+                    />
+                    
+                    {showModalResults && (
+                      <div className="absolute top-[50px] left-0 right-0 z-[120] max-h-[160px] overflow-y-auto bg-white shadow-xl border border-border rounded-xl">
+                        {modalSearchResults.map((result, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setEditedStoreName(result.name)
+                              setModalSelectedStore(result)
+                              setShowModalResults(false)
+                            }}
+                            className="w-full text-left p-3 border-b border-border last:border-none active:bg-accentBg"
+                          >
+                            <p className="text-xs font-bold text-text">{result.name}</p>
+                            <p className="text-[10px] text-sub truncate">{result.address}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-xs font-bold text-sub">금액</span>
-                    <span className="text-base font-black text-accent">
-                      +{money(pendingOcrResult.amount)}원
-                    </span>
+
+                  {/* 금액 입력 */}
+                  <div>
+                    <span className="text-xs font-bold text-sub block mb-1">추가할 금액</span>
+                    <div className="flex items-center border-b border-text/10 py-1">
+                      <input
+                        type="text"
+                        value={editedAmount}
+                        onChange={(e) => setEditedAmount(e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-transparent text-base font-black text-accent outline-none"
+                        inputMode="numeric"
+                      />
+                      <span className="ml-1 text-sm font-bold text-accent">원</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex w-full gap-3">
                   <button
-                    onClick={() => setPendingOcrResult(null)}
+                    onClick={() => {
+                      setPendingOcrResult(null)
+                      setIsStoreMismatch(false)
+                      setShowModalResults(false)
+                    }}
                     className="h-12 flex-1 rounded-xl bg-border/30 text-[14px] font-bold text-sub"
                   >
                     취소
                   </button>
                   <button
                     onClick={handleConfirmOcr}
-                    className="h-12 flex-[2] rounded-xl bg-accent text-[14px] font-bold text-white shadow-md active:opacity-80"
+                    disabled={isStoreMismatch}
+                    className={`h-12 flex-[2] rounded-xl text-[14px] font-bold text-white shadow-md active:opacity-80 transition-colors ${isStoreMismatch ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-accent'}`}
                   >
-                    추가하기
+                    {isStoreMismatch ? '가게 불일치' : '확인 및 추가'}
                   </button>
                 </div>
               </div>
