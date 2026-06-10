@@ -2,6 +2,7 @@ export type User = {
   no: number
   name: string
   email: string
+  profileImageUrl?: string
 }
 
 export type Room = {
@@ -38,11 +39,20 @@ export type Receipt = {
   id?: number
   no?: number
   receiptId?: number
+  receiptType?: 'COMBINED' | 'SPLIT' | 'PERSONAL' | string
   date: string
   room: string
   image: string
+  imageUrl?: string
   title: string
+  storeName?: string
+  totalAmount?: number
   amount: number
+  splits?: {
+    roomMemberId?: number
+    userName?: string
+    amount?: number
+  }[]
 }
 
 export type RecommendationResult = {
