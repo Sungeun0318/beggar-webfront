@@ -9,7 +9,6 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { getRoom, getRoomMembers, startBudgetInput } from '../../lib/api/rooms'
-import { wsClient } from '../../lib/websocket'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Member } from '../../types'
@@ -59,13 +58,6 @@ export function InviteRoomScreen() {
           const name = res.roomName || res.name || '새로운 거지방'
           const code = res.roomCode || res.code || 'SsWgDgaQt1FC'
           const maxCount = Number(res.maxMemberCount) || 2
-          const status = res.roomStatus || res.status
-
-          // ✅ 이미 예산 입력 단계라면 바로 이동 (사용자 경험 개선)
-          if (status === 'BUDGET_INPUT') {
-            navigate(`/budget/input/${finalRoomNo}`, { replace: true })
-            return
-          }
 
           setRoomData({
             roomName: name,

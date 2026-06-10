@@ -1,12 +1,12 @@
 import { Edit3, MessageCircle, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { softBox } from '../../components/ui/softBox'
-import { getPosts } from '../../lib/api/community'
+import { getPopularPosts, getPosts } from '../../lib/api/community'
 import { colors, radii, textStyles } from '../../theme/tokens'
 import type { RoomFreePost } from '../../types'
 
@@ -42,20 +42,36 @@ function PostCard({ post }: { post: RoomFreePost }) {
 
 export function CommunityScreen() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState(tabs[0])
+  const [activeTab, setActiveTab] = useState(tabs[1]) // 최신글(tabs[1])을 기본값으로 설정 권장 (백엔드 기본 정렬)
   const [posts, setPosts] = useState<RoomFreePost[]>([])
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   useEffect(() => {
-    void getPosts().then(setPosts)
-  }, [])
-
-  const visiblePosts = useMemo(() => {
-    if (activeTab === '절약팁' || activeTab === '질문') {
-      return posts.filter((post) => post.tag === activeTab)
+    const fetchPosts = async () => {
+      try {
+        let data: RoomFreePost[] = []
+        if (searchKeyword.trim()) {
+          data = await getPosts(searchKeyword.trim())
+        } else if (activeTab === '인기글') {
+          data = await getPopularPosts()
+        } else if (activeTab === '최신글') {
+          data = await getPosts()
+        } else if (activeTab === '절약팁' || activeTab === '질문') {
+          // 태그 필터링의 경우: 일단 최신글을 가져와서 필터링 (필요시 백엔드에 태그별 조회 API 요청 가능)
+          const allPosts = await getPosts()
+          data = allPosts.filter((post) => post.tag === activeTab)
+        }
+        const uniquePosts = data.filter(
+          (post, index, self) => index === self.findIndex((p) => p.id === post.id)
+        )
+        setPosts(uniquePosts)
+      } catch (err) {
+        console.error('게시글 로딩 실패:', err)
+      }
     }
 
-    return posts
-  }, [activeTab, posts])
+    void fetchPosts()
+  }, [activeTab, searchKeyword])
 
   return (
     <PhoneFrame>
@@ -72,9 +88,13 @@ export function CommunityScreen() {
             style={softBox()}
           >
             <Search aria-hidden="true" size={20} color={colors.placeholder} />
-            <span className="ml-3 text-[14px] font-semibold text-placeholder">
-              게시글, 채팅 검색
-            </span>
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="게시글 검색"
+              className="ml-3 flex-1 bg-transparent text-[14px] font-semibold text-text placeholder:text-placeholder focus:outline-none"
+            />
           </div>
 
           <button
@@ -96,7 +116,7 @@ export function CommunityScreen() {
                   전체 채팅방
                 </h2>
                 <p className="mt-1 text-[13px] font-semibold text-sub">
-                  지금 128명이 절약 이야기를 나누는 중
+                  다양한 거지들이 절약 이야기를 나누는 중...
                 </p>
               </div>
             </div>
@@ -137,7 +157,7 @@ export function CommunityScreen() {
           </div>
 
           <div className="mt-5 space-y-4">
-            {visiblePosts.map((post) => (
+            {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>

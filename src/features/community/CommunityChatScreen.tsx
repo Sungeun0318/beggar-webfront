@@ -1,11 +1,11 @@
 import { Send } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { softBox } from '../../components/ui/softBox'
-import { getChats } from '../../lib/api/community'
+import { getChats, sendChat } from '../../lib/api/community'
 import { wsClient } from '../../lib/websocket'
 import { colors, radii } from '../../theme/tokens'
 import type { RoomFreeChat } from '../../types'
@@ -51,36 +51,75 @@ export function CommunityChatScreen() {
   const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [chats, setChats] = useState<RoomFreeChat[]>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    // 기존 채팅 내역 로드
-    void getChats().then(setChats)
+    scrollToBottom()
+  }, [chats])
+
+  useEffect(() => {
+    const myName = localStorage.getItem('userName')
+
+    // 기존 채팅 내역 로드 및 내 메시지 여부 판별
+    void getChats().then((data) => {
+      const transformed = data.map((chat) => ({
+        ...chat,
+        isMine: chat.sender === myName,
+      }))
+      const uniqueChats = transformed.filter(
+        (chat, index, self) => index === self.findIndex((c) => c.id === chat.id)
+      )
+      setChats(uniqueChats)
+    })
+
+    let subscription: { unsubscribe: () => void } | undefined
 
     // WebSocket 연결 및 구독
-    wsClient.connect().then(() => {
-      wsClient.subscribe('/sub/chats', (msg) => {
-        const receivedChat: RoomFreeChat = JSON.parse(msg.body)
-        setChats((prev) => {
-          // 중복 방지 (본인이 보낸 것이 이미 로컬에 추가되었을 경우 등 대비)
-          if (prev.some(c => c.id === receivedChat.id)) return prev
-          return [...prev, receivedChat]
-        })
+    wsClient.connect(() => {
+      console.log('커뮤니티 채팅 웹소켓 연결 성공')
+      
+      subscription = wsClient.subscribe('/sub/chats', (msg) => {
+        try {
+          const receivedChat = JSON.parse(msg.body)
+          
+          // 로컬 스토리지의 유저 정보와 비교하여 isMine 결정
+          const myName = localStorage.getItem('userName')
+          const chatWithMine: RoomFreeChat = {
+            ...receivedChat,
+            isMine: receivedChat.sender === myName
+          }
+
+          setChats((prev) => {
+            if (prev.some(c => c.id === chatWithMine.id)) return prev
+            return [...prev, chatWithMine]
+          })
+        } catch (err) {
+          console.error('채팅 메시지 파싱 실패:', err)
+        }
       })
     })
 
     return () => {
-      wsClient.disconnect()
+      console.log('커뮤니티 채팅 웹소켓 정리 중')
+      subscription?.unsubscribe()
     }
   }, [])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const nextMessage = message.trim()
     if (!nextMessage) return
 
-    // WebSocket을 통해 메시지 전송
-    wsClient.publish('/pub/chats', { content: nextMessage })
-
-    setMessage('')
+    try {
+      await sendChat(nextMessage)
+      setMessage('')
+    } catch (err) {
+      console.error('채팅 전송 실패:', err)
+      alert('메시지 전송에 실패했습니다.')
+    }
   }
 
   return (
@@ -94,7 +133,7 @@ export function CommunityChatScreen() {
             style={softBox({ color: colors.accentBg, radius: radii.card })}
           >
             <p className="text-[14px] font-semibold leading-[1.55] text-sub">
-              전체 사용자 128명이 참여 중이에요. 착한가격 업소, 쿠폰, 절약 루트를 자유롭게 공유해요.
+              착한가격 업소, 쿠폰, 절약 루트를 자유롭게 공유해요!
             </p>
           </div>
 
@@ -102,6 +141,7 @@ export function CommunityChatScreen() {
             {chats.map((chat) => (
               <ChatBubble key={chat.id} chat={chat} />
             ))}
+            <div ref={scrollRef} />
           </div>
         </section>
 

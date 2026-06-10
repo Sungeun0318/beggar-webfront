@@ -254,7 +254,7 @@ export function RoomSettingsScreen() {
           <PrimaryButton 
             label={room.status === 'ENDED' ? '종료된 방입니다' : '설정 저장'} 
             onTap={handleSave} 
-            enabled={room.status !== 'ENDED'}
+            disabled={room.status === 'ENDED'}
           />
           {isOwner && room.status !== 'ENDED' && (
             <>
