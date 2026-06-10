@@ -62,6 +62,15 @@ function localUser(): User {
   }
 }
 
+function clearStoredUser() {
+  localStorage.removeItem("accessToken")
+  localStorage.removeItem("refreshToken")
+  localStorage.removeItem("userNo")
+  localStorage.removeItem("userName")
+  localStorage.removeItem("userEmail")
+  localStorage.removeItem("profileImageUrl")
+}
+
 export async function login({ email, password }: LoginRequest): Promise<User> {
   if (MOCK.auth) {
     return currentUser
@@ -157,6 +166,16 @@ export async function updateProfileImage(profileImageUrl: string): Promise<User>
 
   // 업데이트 후 서버에서 최신 정보를 다시 가져옵니다.
   return getCurrentUser()
+}
+
+export async function withdraw(): Promise<void> {
+  if (MOCK.auth) {
+    clearStoredUser()
+    return
+  }
+
+  await client.del<ApiResponse<void>>("/users/me")
+  clearStoredUser()
 }
 
 export async function uploadProfileImage(file: File): Promise<string> {
