@@ -43,6 +43,10 @@ export type Receipt = {
   image: string
   title: string
   amount: number
+  address?: string
+  storeName?: string
+  totalAmount?: number
+  createdAt?: string
 }
 
 export type RecommendationResult = {

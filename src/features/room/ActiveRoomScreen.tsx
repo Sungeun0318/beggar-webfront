@@ -8,6 +8,8 @@ import {
   Trophy,
   WalletCards,
   Loader2,
+  X,
+  MapPin,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -22,7 +24,7 @@ import { getRoom, closeRoom } from '../../lib/api/rooms'
 import { getRoomReceipts } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
-import { colors, radii } from '../../theme/tokens'
+import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { BudgetResult, RecommendedPlace, Room, Receipt } from '../../types'
 
@@ -79,6 +81,7 @@ export function ActiveRoomScreen() {
   const [room, setRoom] = useState<Room | null>(null)
   const [budget, setBudget] = useState<BudgetResult | null>(null)
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
   const [initialRecommendedPlaces, setInitialRecommendedPlaces] = useState<RecommendedPlace[]>([])
@@ -183,6 +186,7 @@ export function ActiveRoomScreen() {
     try {
       await closeRoom(roomNo)
       alert('방이 성공적으로 종료되었습니다.')
+      // 상태 업데이트를 위해 방 정보를 다시 불러옴
       const updatedRoom = await getRoom(roomNo)
       setRoom(updatedRoom)
     } catch (error: any) {
@@ -302,7 +306,7 @@ export function ActiveRoomScreen() {
           <div className="space-y-3">
             {receiptList.length > 0 ? (
               receiptList.map((receipt, index) => (
-                <div key={receipt.id || index} onClick={() => navigate('/receipts')} className="cursor-pointer">
+                <div key={receipt.id || index} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
                   <ReceiptCard
                     date={receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
                     room={receipt.room || displayRoom.name}
@@ -448,6 +452,70 @@ export function ActiveRoomScreen() {
           <div className="h-7" />
         </section>
         {displayRoom.status !== 'ENDED' && <RoomReceiptBar roomNo={roomNo} />}
+
+        {/* 영수증 상세 중앙 팝업 */}
+        {selectedReceipt && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-6"
+            onClick={() => setSelectedReceipt(null)}
+          >
+            <div 
+              className="w-full max-w-[360px] rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in duration-300 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative w-full bg-white flex items-center justify-center overflow-hidden border-b border-border/50" style={{ minHeight: '260px', maxHeight: '50vh' }}>
+                <img
+                  src={selectedReceipt.image || (selectedReceipt as any).imageUrl}
+                  alt="영수증 원본"
+                  className="w-full h-auto max-h-[50vh] object-contain"
+                />
+                <button
+                  onClick={() => setSelectedReceipt(null)}
+                  className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-black/10 text-white backdrop-blur-sm"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-[20px] font-black text-text leading-tight flex-1">
+                    {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없는 지출'}
+                  </h3>
+                  <span className="text-[17px] font-black text-accent whitespace-nowrap">
+                    {money(selectedReceipt.amount || (selectedReceipt as any).totalAmount || 0)}원
+                  </span>
+                </div>
+                
+                <div className="mt-5 space-y-3.5">
+                  <div className="flex items-start">
+                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                      <MapPin size={12} color={colors.accent} />
+                    </div>
+                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                      {selectedReceipt.address || '주소 정보가 없습니다.'}
+                    </p>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                      <ReceiptText size={12} color={colors.accent} />
+                    </div>
+                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                      등록일: {selectedReceipt.date || (selectedReceipt as any).createdAt?.slice(0, 16).replaceAll('-', '.').replace('T', ' ') || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedReceipt(null)}
+                  className="mt-8 h-13 w-full rounded-2xl bg-accent text-[16px] font-bold text-white shadow-lg shadow-accent/20 active:scale-[0.98] transition-transform"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )
