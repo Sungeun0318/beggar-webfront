@@ -158,22 +158,22 @@ export function ReceiptSplitScreen() {
 
   const handleSubmit = async () => {
     const numericAmount = Number(amount.replace(/\D/g, '')) || 0
-    if (!storeName || numericAmount <= 0) {
-      alert('가게 이름과 금액을 입력해주세요.')
+    if (!selectedStore || numericAmount <= 0) {
+      alert('검색 결과에서 가게를 선택하고 금액을 입력해주세요.')
       return
     }
 
     setIsSubmitting(true)
     try {
       const payload = {
-        storeName: selectedStore?.name || storeName,
-        title: selectedStore?.name || storeName,
+        storeName: selectedStore.name,
+        title: selectedStore.name,
         amount: numericAmount,
         receiptType: 'SPLIT' as const,
         inputMethod: (currentReceiptId ? activeInputMethod : 'MANUAL') as any,
-        address: selectedStore?.address,
-        centerLat: selectedStore?.lat,
-        centerLng: selectedStore?.lng,
+        address: selectedStore.address,
+        centerLat: selectedStore.lat,
+        centerLng: selectedStore.lng,
       }
 
       if (currentReceiptId) {
@@ -324,9 +324,9 @@ export function ReceiptSplitScreen() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting || !storeName || Number(amount) <= 0}
+              disabled={isSubmitting || !selectedStore || Number(amount) <= 0}
               className={`flex h-[60px] w-full items-center justify-center rounded-card text-base font-bold text-white shadow-md transition-all ${
-                storeName && Number(amount) > 0 && !isSubmitting ? 'opacity-100' : 'opacity-50'
+                selectedStore && Number(amount) > 0 && !isSubmitting ? 'opacity-100' : 'opacity-50'
               }`}
               style={{ background: gradients.goldGradient }}
             >
