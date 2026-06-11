@@ -1,17 +1,16 @@
-import { Camera, Coins, Image as ImageIcon, Loader2, MapPin, Search, Receipt } from 'lucide-react'
+import { Camera, Coins, Image as ImageIcon, Loader2, MapPin, Search, Receipt as ReceiptIcon, AlertCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
-import { PrimaryButton } from '../../components/PrimaryButton'
 import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
+import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt, getRoomReceipts, deleteReceipt } from '../../lib/api/receipts'
 import { getRoom } from '../../lib/api/rooms'
 import { colors, radii, spacing, gradients } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { LocationSearchResult } from '../../types'
+import type { LocationSearchResult, Receipt } from '../../types'
 
 export function ReceiptRegisterScreen() {
   const navigate = useNavigate()
@@ -19,6 +18,28 @@ export function ReceiptRegisterScreen() {
   const roomNo = Number(searchParams.get('roomNo')) || 1
   
   const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
+  const [existingReceipts, setExistingReceipts] = useState<Receipt[]>([])
+
+  // 유령 데이터 방지를 위한 ref
+  const currentReceiptIdRef = useRef<number | null>(null)
+  const isCommittedRef = useRef(false)
+
+  // state와 ref 동기화
+  useEffect(() => {
+    currentReceiptIdRef.current = currentReceiptId
+  }, [currentReceiptId])
+
+  // 페이지 이탈 시 청소 로직
+  useEffect(() => {
+    return () => {
+      if (!isCommittedRef.current && currentReceiptIdRef.current) {
+        const idToDelete = currentReceiptIdRef.current
+        deleteReceipt(roomNo, idToDelete).catch(err => 
+          console.error('페이지 이탈 시 임시 데이터 삭제 실패:', err)
+        )
+      }
+    }
+  }, [roomNo])
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -37,6 +58,9 @@ export function ReceiptRegisterScreen() {
   const [selectedStore, setSelectedStore] = useState<LocationSearchResult | null>(null)
   const [showResults, setShowResults] = useState(false)
 
+  // 커스텀 알림 모달 상태 (중복 등록 방지용)
+  const [duplicateModalMessage, setDuplicateModalMessage] = useState<string | null>(null)
+
   useEffect(() => {
     getRoom(roomNo).then((data) => {
       if (data.status === 'ENDED') {
@@ -44,6 +68,9 @@ export function ReceiptRegisterScreen() {
         navigate(-1)
       }
     })
+
+    // 초기 영수증 목록 가져오기
+    getRoomReceipts(roomNo).then(setExistingReceipts).catch(console.error)
   }, [roomNo, navigate])
 
   const modeTitle = '통합 영수증'
@@ -160,24 +187,50 @@ export function ReceiptRegisterScreen() {
   }
 
   const handleManualSubmit = async () => {
-    if (!storeName || !amount) {
-      alert('가게 이름과 금액을 입력해주세요.')
+    if (!selectedStore || !amount) {
+      alert('검색 결과에서 가게를 선택하고 금액을 입력해주세요.')
       return
     }
 
     setIsSubmitting(true)
     try {
       const numericAmount = parseInt(amount.replace(/\D/g, ''), 10)
+
+      // 정확한 중복 체크를 위해 최신 영수증 목록 다시 가져오기
+      const latestReceipts = await getRoomReceipts(roomNo)
       
+      const isDuplicate = latestReceipts.some(r => {
+        // 본인 영수증(수정 중)은 제외
+        const rId = r.id || r.receiptId || r.no
+        if (currentReceiptId && rId === currentReceiptId) return false
+        
+        const rName = (r.storeName || r.title || '').trim()
+        const targetName = selectedStore.name.trim()
+        
+        return rName === targetName && r.amount === numericAmount
+      })
+
+      if (isDuplicate) {
+        setIsSubmitting(false)
+        // 사진 업로드로 임시 생성된 영수증이 있다면 서버에서 삭제
+        if (currentReceiptId) {
+          deleteReceipt(roomNo, currentReceiptId).catch(err => 
+            console.error('중복 영수증 임시 데이터 삭제 실패:', err)
+          )
+        }
+        setDuplicateModalMessage('이미 같은 가게와 금액으로 등록된 영수증이 있습니다.')
+        return
+      }
+
       const payload = {
-        storeName: selectedStore?.name || storeName,
-        title: selectedStore?.name || storeName,
+        storeName: selectedStore.name,
+        title: selectedStore.name,
         amount: numericAmount,
         receiptType: 'COMBINED' as const,
         inputMethod: (currentReceiptId ? activeInputMethod : 'MANUAL') as any,
-        address: selectedStore?.address,
-        centerLat: selectedStore?.lat,
-        centerLng: selectedStore?.lng,
+        address: selectedStore.address,
+        centerLat: selectedStore.lat,
+        centerLng: selectedStore.lng,
       }
 
       if (currentReceiptId) {
@@ -185,13 +238,24 @@ export function ReceiptRegisterScreen() {
       } else {
         await createReceipt(roomNo, payload)
       }
+      
+      isCommittedRef.current = true // 등록 성공 표시
       complete()
     } catch (error: any) {
       console.error('영수증 등록 실패:', error)
       alert('영수증 등록에 실패했습니다.')
-    } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleCloseDuplicateModal = () => {
+    setDuplicateModalMessage(null)
+    // 모달을 닫을 때 입력 정보 및 현재 작업 중인 ID 초기화
+    setStoreName('')
+    setAmount('')
+    setSelectedStore(null)
+    setCurrentReceiptId(null)
+    currentReceiptIdRef.current = null // ref도 함께 초기화
   }
 
   const handleSelectStore = (store: LocationSearchResult) => {
@@ -215,7 +279,7 @@ export function ReceiptRegisterScreen() {
           >
             <div className="flex items-center">
               <div className="grid h-11 w-11 place-items-center rounded-full bg-white">
-                <Receipt aria-hidden="true" size={23} color={colors.accent} />
+                <ReceiptIcon aria-hidden="true" size={23} color={colors.accent} />
               </div>
               <div className="ml-3">
                 <h1 className="text-[22px] font-black text-text" style={{ letterSpacing: -0.7 }}>
@@ -323,9 +387,9 @@ export function ReceiptRegisterScreen() {
             <button
               type="button"
               onClick={handleManualSubmit}
-              disabled={isSubmitting || !storeName || !amount}
+              disabled={isSubmitting || !selectedStore || !amount}
               className={`flex h-[60px] w-full items-center justify-center rounded-card text-base font-bold text-white shadow-md transition-all ${
-                storeName && amount && !isSubmitting ? 'opacity-100' : 'opacity-50'
+                selectedStore && amount && !isSubmitting ? 'opacity-100' : 'opacity-50'
               }`}
               style={{ background: gradients.goldGradient }}
             >
@@ -359,6 +423,29 @@ export function ReceiptRegisterScreen() {
               <Loader2 className="animate-spin" size={40} color={colors.accent} />
               <p className="mt-4 text-base font-bold text-text">영수증을 분석하고 있어요</p>
               <p className="mt-1 text-sm font-medium text-sub">잠시만 기다려주세요...</p>
+            </div>
+          </div>
+        )}
+
+        {/* 중복 알림 커스텀 모달 */}
+        {duplicateModalMessage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+            <div className="w-full max-w-[320px] bg-white rounded-[24px] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+                  <AlertCircle size={30} className="text-red-500" />
+                </div>
+                <h3 className="mb-2 text-lg font-black text-text">알림</h3>
+                <p className="mb-6 text-[15px] font-semibold leading-relaxed text-sub whitespace-pre-wrap">
+                  {duplicateModalMessage}
+                </p>
+                <button
+                  onClick={handleCloseDuplicateModal}
+                  className="h-14 w-full rounded-2xl bg-text text-base font-bold text-white active:opacity-90"
+                >
+                  확인
+                </button>
+              </div>
             </div>
           </div>
         )}
