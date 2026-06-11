@@ -39,6 +39,7 @@ export type Receipt = {
   id?: number
   no?: number
   receiptId?: number
+  roomNo?: number
   receiptType?: 'COMBINED' | 'SPLIT' | 'PERSONAL' | string
   date: string
   room: string
@@ -61,6 +62,7 @@ export type ReceiptHistoryItem = {
   receiptId: number
   roomNo: number
   roomName: string
+  storeName?: string
   receiptType: 'COMBINED' | 'SPLIT' | string
   amount: number
   createdAt: string

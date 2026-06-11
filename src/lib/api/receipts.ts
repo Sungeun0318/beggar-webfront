@@ -118,6 +118,7 @@ export async function getMyReceipts(): Promise<ReceiptHistory> {
         receiptId: receipt.receiptId || receipt.id || index + 1,
         roomNo: 1,
         roomName: receipt.room,
+        storeName: receipt.storeName || receipt.title,
         receiptType: receipt.receiptType || 'COMBINED',
         amount: receipt.amount,
         createdAt: receipt.createdAt || `${receipt.date.replaceAll('.', '-')}T00:00:00`,

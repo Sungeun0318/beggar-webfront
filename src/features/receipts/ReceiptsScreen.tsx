@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { ReceiptCard } from '../../components/ReceiptCard'
-import { getMyReceipts } from '../../lib/api/receipts'
+import { getMyReceipts, getReceiptDetail } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -14,6 +14,11 @@ import type { Receipt } from '../../types'
 function publicReceiptImage(image: string) {
   if (image.startsWith('http')) return image
   return `/${image}`
+}
+
+function validStoreName(name?: string) {
+  const normalized = name?.trim()
+  return Boolean(normalized && normalized !== '분석 중...')
 }
 
 export function ReceiptsScreen() {
@@ -28,16 +33,39 @@ export function ReceiptsScreen() {
       try {
         // 임시로 roomNo 1 사용
         const data = await getMyReceipts()
-        setReceiptList(data.receipts.map((receipt) => ({
-          receiptId: receipt.receiptId,
-          date: receipt.createdAt?.slice(0, 10).replaceAll('-', '.') || '',
-          room: receipt.roomName,
-          image: '',
-          title: receipt.receiptType === 'SPLIT' ? 'Split receipt' : 'Combined receipt',
-          amount: receipt.amount,
-          createdAt: receipt.createdAt,
-          receiptType: receipt.receiptType,
-        })))
+        const receipts = await Promise.all(data.receipts.map(async (receipt) => {
+          let detail = null
+
+          if (!validStoreName(receipt.storeName)) {
+            detail = await getReceiptDetail(receipt.roomNo, receipt.receiptId).catch(() => null)
+          }
+
+          const storeName =
+            validStoreName(receipt.storeName)
+              ? receipt.storeName
+              : validStoreName(detail?.storeName)
+                ? detail?.storeName
+                : validStoreName(detail?.title)
+                  ? detail?.title
+                  : ''
+
+          return {
+            receiptId: receipt.receiptId,
+            roomNo: receipt.roomNo,
+            date: receipt.createdAt?.slice(0, 10).replaceAll('-', '.') || '',
+            room: receipt.roomName,
+            image: detail?.image || detail?.imageUrl || '',
+            title: storeName || '이름 없는 지출',
+            storeName,
+            amount: detail?.amount || detail?.totalAmount || receipt.amount,
+            address: detail?.address,
+            createdAt: receipt.createdAt,
+            receiptType: receipt.receiptType,
+            splits: detail?.splits,
+          }
+        }))
+
+        setReceiptList(receipts)
         setTotalAmount(data.totalAmount)
       } catch (error) {
         console.error('영수증 목록 로드 실패:', error)

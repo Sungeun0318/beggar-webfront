@@ -10,7 +10,7 @@ import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt, get
 import { getRoom } from '../../lib/api/rooms'
 import { colors, radii, spacing, gradients } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { LocationSearchResult, Receipt } from '../../types'
+import type { LocationSearchResult } from '../../types'
 
 export function ReceiptRegisterScreen() {
   const navigate = useNavigate()
