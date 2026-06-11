@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { ReceiptCard } from '../../components/ReceiptCard'
-import { getRoomReceipts } from '../../lib/api/receipts'
+import { getMyReceipts } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -19,6 +19,7 @@ function publicReceiptImage(image: string) {
 export function ReceiptsScreen() {
   const navigate = useNavigate()
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
+  const [totalAmount, setTotalAmount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
 
@@ -26,8 +27,18 @@ export function ReceiptsScreen() {
     async function loadReceipts() {
       try {
         // 임시로 roomNo 1 사용
-        const data = await getRoomReceipts(1)
-        setReceiptList(data)
+        const data = await getMyReceipts()
+        setReceiptList(data.receipts.map((receipt) => ({
+          receiptId: receipt.receiptId,
+          date: receipt.createdAt?.slice(0, 10).replaceAll('-', '.') || '',
+          room: receipt.roomName,
+          image: '',
+          title: receipt.receiptType === 'SPLIT' ? 'Split receipt' : 'Combined receipt',
+          amount: receipt.amount,
+          createdAt: receipt.createdAt,
+          receiptType: receipt.receiptType,
+        })))
+        setTotalAmount(data.totalAmount)
       } catch (error) {
         console.error('영수증 목록 로드 실패:', error)
       } finally {
@@ -36,11 +47,6 @@ export function ReceiptsScreen() {
     }
     loadReceipts()
   }, [])
-
-  const total = receiptList.reduce((sum, receipt) => {
-    const amount = receipt.amount || (receipt as any).totalAmount || 0
-    return sum + amount
-  }, 0)
 
   if (loading) {
     return (
@@ -82,7 +88,7 @@ export function ReceiptsScreen() {
                 이번 달 총 지출
               </p>
               <p className="mt-[5px] text-text">
-                <span className="text-[22px] font-black">{money(total)}</span>
+                <span className="text-[22px] font-black">{money(totalAmount)}</span>
                 <span className="text-base font-semibold text-sub">원</span>
               </p>
             </div>

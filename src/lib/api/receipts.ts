@@ -1,5 +1,5 @@
 import { receipts } from '../../mocks'
-import type { Receipt } from '../../types'
+import type { Receipt, ReceiptHistory } from '../../types'
 import { client } from './client'
 import { MOCK } from './mockMode'
 
@@ -11,6 +11,12 @@ type ReceiptRequest = {
   image?: string
   imageUrl?: string
   uploaderUserNo?: number
+}
+
+type ApiResponse<T> = {
+  success: boolean
+  data: T
+  message?: string
 }
 
 export async function createReceipt(
@@ -105,13 +111,24 @@ export async function getRoomReceipts(roomNo: number): Promise<Receipt[]> {
   return client.getList<Receipt>(`/rooms/${roomNo}/receipts`)
 }
 
-export async function getMyReceipts(): Promise<Receipt[]> {
+export async function getMyReceipts(): Promise<ReceiptHistory> {
   if (MOCK.receipts) {
-    return receipts
+    return {
+      receipts: receipts.map((receipt, index) => ({
+        receiptId: receipt.receiptId || receipt.id || index + 1,
+        roomNo: 1,
+        roomName: receipt.room,
+        receiptType: receipt.receiptType || 'COMBINED',
+        amount: receipt.amount,
+        createdAt: receipt.createdAt || `${receipt.date.replaceAll('.', '-')}T00:00:00`,
+      })),
+      totalAmount: receipts.reduce((sum, receipt) => sum + receipt.amount, 0),
+    }
   }
 
   // 실제 경로: GET /users/me/receipts
-  return client.getList<Receipt>('/users/me/receipts')
+  const response = await client.get<ApiResponse<ReceiptHistory>>('/users/me/receipts')
+  return response.data
 }
 
 export async function deleteReceipt(

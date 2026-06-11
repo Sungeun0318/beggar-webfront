@@ -57,6 +57,20 @@ export type Receipt = {
   }[]
 }
 
+export type ReceiptHistoryItem = {
+  receiptId: number
+  roomNo: number
+  roomName: string
+  receiptType: 'COMBINED' | 'SPLIT' | string
+  amount: number
+  createdAt: string
+}
+
+export type ReceiptHistory = {
+  receipts: ReceiptHistoryItem[]
+  totalAmount: number
+}
+
 export type RecommendationResult = {
   roomNo: number
   totalBudget?: number | null
