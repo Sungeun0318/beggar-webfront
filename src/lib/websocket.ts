@@ -7,6 +7,7 @@ const SOCKET_URL = `${API_BASE_URL}/ws-stomp`;
 export class WebSocketClient {
   private client: Client;
   private connected: boolean = false;
+  private connectionPromise: Promise<void> | null = null;
 
   constructor() {
     this.client = new Client({
@@ -20,23 +21,37 @@ export class WebSocketClient {
     });
   }
 
-  connect(onConnect: (frame: IFrame) => void) {
+  async connect(onConnect?: (frame: IFrame) => void): Promise<void> {
     if (this.connected && this.client.active) {
-      onConnect({} as IFrame) // 이미 연결됨
-      return
+      onConnect?.({} as IFrame) // 이미 연결됨
+      return;
     }
 
-    this.client.onConnect = (frame) => {
-      this.connected = true;
-      onConnect(frame);
-    };
+    if (this.connectionPromise) {
+      return this.connectionPromise.then(() => {
+        onConnect?.({} as IFrame);
+      });
+    }
 
-    this.client.onStompError = (frame) => {
-      console.error("Broker reported error: " + frame.headers["message"]);
-      console.error("Additional details: " + frame.body);
-    };
+    this.connectionPromise = new Promise((resolve, reject) => {
+      this.client.onConnect = (frame) => {
+        this.connected = true;
+        this.connectionPromise = null;
+        onConnect?.(frame);
+        resolve();
+      };
 
-    this.client.activate();
+      this.client.onStompError = (frame) => {
+        console.error("Broker reported error: " + frame.headers["message"]);
+        console.error("Additional details: " + frame.body);
+        this.connectionPromise = null;
+        reject(frame);
+      };
+
+      this.client.activate();
+    });
+
+    return this.connectionPromise;
   }
 
   isConnected() {
@@ -50,9 +65,17 @@ export class WebSocketClient {
     return this.client.subscribe(topic, callback);
   }
 
+  publish(destination: string, body: any) {
+    this.client.publish({
+      destination,
+      body: JSON.stringify(body),
+    });
+  }
+
   disconnect() {
     this.client.deactivate();
     this.connected = false;
+    this.connectionPromise = null;
   }
 }
 

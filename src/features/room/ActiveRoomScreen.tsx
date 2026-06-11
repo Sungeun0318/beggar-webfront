@@ -24,7 +24,7 @@ import { getRoom, closeRoom } from '../../lib/api/rooms'
 import { getRoomReceipts } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { BudgetResult, RecommendedPlace, Room, Receipt } from '../../types'
 

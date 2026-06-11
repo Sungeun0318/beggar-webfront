@@ -1,6 +1,5 @@
 import type {
   RoomFreeChat,
-  RoomFreeComment,
   RoomFreePost,
   RoomFreePostDetail,
 } from '../../types'
