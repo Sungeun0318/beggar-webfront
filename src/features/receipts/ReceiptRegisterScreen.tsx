@@ -16,20 +16,16 @@ export function ReceiptRegisterScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const roomNo = Number(searchParams.get('roomNo')) || 1
-  
-  const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
-  const [existingReceipts, setExistingReceipts] = useState<Receipt[]>([])
 
-  // 유령 데이터 방지를 위한 ref
+  const [currentReceiptId, setCurrentReceiptId] = useState<number | null>(null)
+
   const currentReceiptIdRef = useRef<number | null>(null)
   const isCommittedRef = useRef(false)
 
-  // state와 ref 동기화
   useEffect(() => {
     currentReceiptIdRef.current = currentReceiptId
   }, [currentReceiptId])
 
-  // 페이지 이탈 시 청소 로직
   useEffect(() => {
     return () => {
       if (!isCommittedRef.current && currentReceiptIdRef.current) {
@@ -43,7 +39,7 @@ export function ReceiptRegisterScreen() {
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [storeName, setStoreName] = useState('')
   const [amount, setAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -68,11 +64,7 @@ export function ReceiptRegisterScreen() {
         navigate(-1)
       }
     })
-
-    // 초기 영수증 목록 가져오기
-    getRoomReceipts(roomNo).then(setExistingReceipts).catch(console.error)
   }, [roomNo, navigate])
-
   const modeTitle = '통합 영수증'
   const modeDescription =
     '한 식당이나 장소에서 한 번에 결제한 영수증을 등록해요.'
