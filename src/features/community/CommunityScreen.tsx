@@ -10,7 +10,7 @@ import { getPopularPosts, getPosts } from '../../lib/api/community'
 import { colors, radii, textStyles } from '../../theme/tokens'
 import type { RoomFreePost } from '../../types'
 
-const tabs = ['인기글', '최신글', '절약팁', '질문']
+const tabs = ['인기글', '최신글', '절약팁', '질문', '같이해요']
 
 function PostCard({ post }: { post: RoomFreePost }) {
   const navigate = useNavigate()
@@ -56,8 +56,8 @@ export function CommunityScreen() {
           data = await getPopularPosts()
         } else if (activeTab === '최신글') {
           data = await getPosts()
-        } else if (activeTab === '절약팁' || activeTab === '질문') {
-          // 태그 필터링의 경우: 일단 최신글을 가져와서 필터링 (필요시 백엔드에 태그별 조회 API 요청 가능)
+        } else {
+          // 태그 필터링의 경우: '절약팁', '질문', '같이해요' 등
           const allPosts = await getPosts()
           data = allPosts.filter((post) => post.tag === activeTab)
         }
