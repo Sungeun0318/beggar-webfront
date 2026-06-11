@@ -83,7 +83,6 @@ export function ReceiptRegisterScreen() {
   // OCR 결과 폴링
   const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
     if (!receiptId) {
-      console.error('영수증 ID가 없습니다.')
       setOcrLoading(false)
       alert('영수증 생성에 실패했습니다. 직접 입력해주세요.')
       return
@@ -259,7 +258,6 @@ export function ReceiptRegisterScreen() {
               />
             </div>
 
-            {/* 검색 결과 목록 */}
             {showResults && (
               <div 
                 className="absolute top-[65px] left-0 right-0 z-50 max-h-[240px] overflow-y-auto bg-white shadow-lg"
