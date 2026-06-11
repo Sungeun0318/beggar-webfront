@@ -1,8 +1,7 @@
-import { Camera, Edit3, Image as ImageIcon, Coins, Loader2, MapPin, Search } from 'lucide-react'
+import { Camera, Coins, Image as ImageIcon, Loader2, MapPin, Search, Receipt } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { ActionBox } from '../../components/ActionBox'
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
@@ -10,11 +9,9 @@ import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
 import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt } from '../../lib/api/receipts'
 import { getRoom } from '../../lib/api/rooms'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, radii, spacing, gradients } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { LocationSearchResult } from '../../types'
-
-type Step = 'METHOD' | 'MANUAL'
 
 export function ReceiptRegisterScreen() {
   const navigate = useNavigate()
@@ -26,7 +23,6 @@ export function ReceiptRegisterScreen() {
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   
-  const [step, setStep] = useState<Step>('METHOD')
   const [storeName, setStoreName] = useState('')
   const [amount, setAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -79,55 +75,41 @@ export function ReceiptRegisterScreen() {
   }, [storeName, selectedStore])
 
   const handleBack = () => {
-    if (step === 'MANUAL') {
-      setStep('METHOD')
-      setStoreName('')
-      setAmount('')
-      setSelectedStore(null)
-    } else {
-      navigate(-1)
-    }
+    navigate(-1)
   }
 
   const complete = () => navigate(`/room/${roomNo}`)
 
-  // OCR 결과
+  // OCR 결과 폴링
   const pollOcrResult = async (targetRoomNo: number, receiptId: any) => {
     if (!receiptId) {
       console.error('영수증 ID가 없습니다.')
       setOcrLoading(false)
       alert('영수증 생성에 실패했습니다. 직접 입력해주세요.')
-      setStep('MANUAL')
       return
     }
 
     let attempts = 0
     const maxAttempts = 50
 
-    console.log(`[OCR 폴링 시작] 영수증 ID: ${receiptId}`)
-
     const interval = setInterval(async () => {
       attempts++
       try {
         const detail = await getReceiptDetail(targetRoomNo, receiptId)
         
-        // 분석 완료 조건 완화: SUCCESS 상태이거나, 실제 데이터(가게명 또는 금액)가 들어왔을 때
         const hasStore = detail.storeName && detail.storeName !== '분석 중...' && detail.storeName !== ''
         const hasAmount = (detail.totalAmount && detail.totalAmount !== 0) || (detail as any).amount !== 0
         const isSuccess = (detail as any).ocrStatus === 'SUCCESS'
         const isFailed = (detail as any).ocrStatus === 'FAILED'
 
         if (isFailed) {
-          console.error('[OCR 분석 실패] 백엔드에서 분석 실패 상태를 반환했습니다.')
           clearInterval(interval)
           setOcrLoading(false)
           alert('영수증 분석에 실패했습니다. 직접 입력해주세요.')
-          setStep('MANUAL')
           return
         }
 
         if (isSuccess || hasStore || hasAmount) {
-          console.log('[OCR 분석 완료] 데이터를 화면에 반영합니다.')
           clearInterval(interval)
           
           setStoreName(hasStore ? detail.storeName! : '')
@@ -135,18 +117,15 @@ export function ReceiptRegisterScreen() {
           setAmount(finalAmount ? String(finalAmount) : '')
           
           setOcrLoading(false)
-          setStep('MANUAL')
         }
       } catch (e) {
         console.error('OCR 결과 확인 중 오류:', e)
       }
 
       if (attempts >= maxAttempts) {
-        console.warn('[OCR 분석 시간 초과] 최대 시도 횟수에 도달했습니다.')
         clearInterval(interval)
         setOcrLoading(false)
         alert('영수증 분석 시간이 초과되었습니다. 직접 입력해주세요.')
-        setStep('MANUAL')
       }
     }, 3000)
   }
@@ -155,18 +134,10 @@ export function ReceiptRegisterScreen() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    console.log(`[영수증 업로드 시작] 방식: ${method}`)
-    console.log(`- 파일명: ${file.name}`)
-    console.log(`- 파일타입: ${file.type}`)
-    console.log(`- 파일크기: ${(file.size / 1024).toFixed(2)} KB`)
-
     setOcrLoading(true)
     setActiveInputMethod(method)
     try {
-      console.log(`- S3 업로드 시도 중... (roomNo: ${roomNo})`)
       const imageUrl = await uploadReceiptImage(roomNo, file)
-      console.log(`- S3 업로드 성공! 결과 URL: ${imageUrl}`)
-
       const receiptData = {
         storeName: '',
         amount: 0,
@@ -175,31 +146,21 @@ export function ReceiptRegisterScreen() {
         image: imageUrl,
         imageUrl: imageUrl,
       }
-      console.log("- 백엔드 영수증 생성 요청 데이터:", receiptData)
-
       const receipt = await createReceipt(roomNo, receiptData)
-      console.log("- 백엔드 영수증 생성 완료:", receipt)
-
-      // 3. 결과 폴링
       const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
-      console.log(`- OCR 폴링 시작 (receiptId: ${finalReceiptId})`)
       setCurrentReceiptId(finalReceiptId)
       pollOcrResult(roomNo, finalReceiptId)
 
     } catch (error: any) {
-      console.error(`[${method} 처리 에러] 상세 내용:`, error)
-      if (error.data) console.error('에러 데이터:', error.data)
+      console.error(`[${method} 처리 에러]`, error)
       setOcrLoading(false)
       alert('영수증 업로드에 실패했습니다.')
+    } finally {
+      if (event.target) event.target.value = ''
     }
   }
 
   const handleManualSubmit = async () => {
-    console.log("[직접 입력 등록 시작]")
-    console.log(`- 가게명: ${storeName}`)
-    console.log(`- 금액: ${amount}`)
-    console.log(`- 선택된 스토어 객체:`, selectedStore)
-
     if (!storeName || !amount) {
       alert('가게 이름과 금액을 입력해주세요.')
       return
@@ -211,7 +172,7 @@ export function ReceiptRegisterScreen() {
       
       const payload = {
         storeName: selectedStore?.name || storeName,
-        title: selectedStore?.name || storeName, // title 필드도 함께 전송
+        title: selectedStore?.name || storeName,
         amount: numericAmount,
         receiptType: 'COMBINED' as const,
         inputMethod: (currentReceiptId ? activeInputMethod : 'MANUAL') as any,
@@ -219,20 +180,15 @@ export function ReceiptRegisterScreen() {
         centerLat: selectedStore?.lat,
         centerLng: selectedStore?.lng,
       }
-      console.log("- 백엔드 등록 요청 데이터:", payload)
 
       if (currentReceiptId) {
-        console.log(`- 기존 영수증 업데이트 시도 (receiptId: ${currentReceiptId})`)
         await updateReceipt(roomNo, currentReceiptId, payload)
       } else {
-        console.log("- 새 영수증 생성 시도")
         await createReceipt(roomNo, payload)
       }
-      console.log("- 등록 성공!")
       complete()
     } catch (error: any) {
       console.error('영수증 등록 실패:', error)
-      if (error.data) console.error('에러 데이터:', error.data)
       alert('영수증 등록에 실패했습니다.')
     } finally {
       setIsSubmitting(false)
@@ -247,171 +203,156 @@ export function ReceiptRegisterScreen() {
 
   return (
     <PhoneFrame>
-      <main className="relative min-h-[852px] bg-bg">
+      <main className="relative min-h-[852px] bg-bg overflow-y-auto pb-10">
         <AppHeaderTitled
           title="영수증 등록"
           onBack={handleBack}
         />
         
-        {step === 'METHOD' ? (
-          <section className="px-pageH pt-2">
-            <div
-              className="p-5"
-              style={softBox({ color: colors.accentBg, radius: radii.card })}
-            >
-              <h1
-                className="text-[22px] font-black text-text"
-                style={{ letterSpacing: -0.7 }}
-              >
-                {modeTitle}
-              </h1>
-              <p className="mt-2 text-sm font-semibold leading-[1.5] text-sub">
-                {modeDescription}
-              </p>
-            </div>
-            <div className="h-6" />
-            <h2
-              className="text-[17px] font-extrabold leading-[1.5] text-text"
-              style={{ letterSpacing: -0.43 }}
-            >
-              등록 방법을 선택해주세요
-            </h2>
-            <div className="h-[13px]" />
-            <ActionBox
-              Icon={Camera}
-              title="사진 촬영"
-              body="카메라로 영수증을 바로 찍어요"
-              onTap={() => cameraInputRef.current?.click()}
-            />
-            <div className="h-3" />
-            <ActionBox
-              Icon={ImageIcon}
-              title="갤러리에서 가져오기"
-              body="이미 찍어둔 영수증 사진을 선택해요"
-              onTap={() => galleryInputRef.current?.click()}
-            />
-            <div className="h-3" />
-            <ActionBox
-              Icon={Edit3}
-              title="직접 입력"
-              body="금액과 내용을 직접 입력해요"
-              onTap={() => setStep('MANUAL')}
-            />
-            <div className="h-6" />
-            <div
-              className="p-4 text-[13px] font-semibold leading-[1.5] text-sub"
-              style={softBox({ radius: radii.card })}
-            >
-              현재 프로토타입에서는 선택 후 지출 내역 화면으로 이동해요. 실제
-              연동 때 카메라, 갤러리, 직접 입력 화면을 각각 연결하면 돼요.
-            </div>
-            <div style={{ height: spacing.bottomSafe }} />
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => handlePhotoChange(e, 'CAMERA')}
-            />
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePhotoChange(e, 'GALLERY')}
-            />
-          </section>
-        ) : (
-          <section className="px-pageH pt-2">
-            {/* ... (Manual Input Form - same as before) */}
-            <SectionTitle text="가게 이름을 입력해주세요" />
-            <div className="h-[13px]" />
-            <div className="relative">
-              <div
-                className="flex h-[60px] w-full items-center px-5"
-                style={softBox({ radius: radii.compact })}
-              >
-                {isSearching ? (
-                  <Loader2 className="mr-3 animate-spin" size={24} color={colors.accent} />
-                ) : (
-                  <Search aria-hidden="true" size={24} color={colors.placeholder} className="mr-3" />
-                )}
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="어디에서 결제하셨나요?"
-                  value={storeName}
-                  onChange={(e) => {
-                    setStoreName(e.target.value)
-                    if (selectedStore && e.target.value !== selectedStore.name) {
-                      setSelectedStore(null)
-                    }
-                  }}
-                  onFocus={() => {
-                    if (searchResults.length > 0) setShowResults(true)
-                  }}
-                  className="w-full bg-transparent text-base font-bold text-text outline-none placeholder:text-placeholder"
-                />
+        <section className="px-pageH pt-2">
+          <div
+            className="p-5"
+            style={softBox({ color: colors.accentBg, radius: radii.card })}
+          >
+            <div className="flex items-center">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-white">
+                <Receipt aria-hidden="true" size={23} color={colors.accent} />
               </div>
-
-              {/* 검색 결과 목록 */}
-              {showResults && (
-                <div 
-                  className="absolute top-[65px] left-0 right-0 z-50 max-h-[240px] overflow-y-auto bg-white shadow-lg"
-                  style={{ borderRadius: radii.compact, border: `1px solid ${colors.border}` }}
-                >
-                  {searchResults.map((result, index) => (
-                    <button
-                      key={`${result.name}-${index}`}
-                      type="button"
-                      onClick={() => handleSelectStore(result)}
-                      className="flex w-full flex-col border-b border-border p-4 text-left last:border-none active:bg-accentBg"
-                    >
-                      <span className="text-[15px] font-bold text-text">{result.name}</span>
-                      <div className="mt-1 flex items-center">
-                        <MapPin size={12} color={colors.sub} className="mr-1" />
-                        <span className="text-xs font-medium text-sub">{result.address}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="ml-3">
+                <h1 className="text-[22px] font-black text-text" style={{ letterSpacing: -0.7 }}>
+                  {modeTitle}
+                </h1>
+                <p className="mt-1 text-[13px] font-semibold text-sub">
+                  {modeDescription}
+                </p>
+              </div>
             </div>
-            
-            <div className="h-7" />
-            <SectionTitle text="결제 금액을 입력해주세요" />
-            <div className="h-[13px]" />
+          </div>
+
+          <div className="h-6" />
+          <SectionTitle text="가게 이름을 입력해주세요" />
+          <div className="h-[13px]" />
+          <div className="relative">
             <div
               className="flex h-[60px] w-full items-center px-5"
               style={softBox({ radius: radii.compact })}
             >
-              <Coins aria-hidden="true" size={24} color={colors.placeholder} className="mr-3" />
+              {isSearching ? (
+                <Loader2 className="mr-3 animate-spin" size={24} color={colors.accent} />
+              ) : (
+                <Search aria-hidden="true" size={24} color={colors.placeholder} className="mr-3" />
+              )}
               <input
                 type="text"
-                inputMode="numeric"
-                placeholder="얼마를 결제하셨나요?"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
+                placeholder="어디에서 결제하셨나요?"
+                value={storeName}
+                onChange={(e) => {
+                  setStoreName(e.target.value)
+                  if (selectedStore && e.target.value !== selectedStore.name) {
+                    setSelectedStore(null)
+                  }
+                }}
+                onFocus={() => {
+                  if (searchResults.length > 0) setShowResults(true)
+                }}
                 className="w-full bg-transparent text-base font-bold text-text outline-none placeholder:text-placeholder"
               />
-              <span className="ml-1 text-base font-semibold text-sub">원</span>
             </div>
 
-            <div className="h-10" />
-            <PrimaryButton
-              label={isSubmitting ? '등록 중...' : '등록 완료'}
-              enabled={!isSubmitting && storeName.length > 0 && amount.length > 0}
-              onTap={handleManualSubmit}
-            />
-            {isSubmitting && (
-              <div className="mt-4 flex justify-center">
-                <Loader2 className="animate-spin" size={24} color={colors.accent} />
+            {/* 검색 결과 목록 */}
+            {showResults && (
+              <div 
+                className="absolute top-[65px] left-0 right-0 z-50 max-h-[240px] overflow-y-auto bg-white shadow-lg"
+                style={{ borderRadius: radii.compact, border: `1px solid ${colors.border}` }}
+              >
+                {searchResults.map((result, index) => (
+                  <button
+                    key={`${result.name}-${index}`}
+                    type="button"
+                    onClick={() => handleSelectStore(result)}
+                    className="flex w-full flex-col border-b border-border p-4 text-left last:border-none active:bg-accentBg"
+                  >
+                    <span className="text-[15px] font-bold text-text">{result.name}</span>
+                    <div className="mt-1 flex items-center">
+                      <MapPin size={12} color={colors.sub} className="mr-1" />
+                      <span className="text-xs font-medium text-sub">{result.address}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
-            <div style={{ height: spacing.bottomSafe }} />
-          </section>
-        )}
+          </div>
+          
+          <div className="h-7" />
+          <SectionTitle text="결제 금액을 입력해주세요" />
+          <div className="h-[13px]" />
+          <div
+            className="flex h-[60px] w-full items-center px-5"
+            style={softBox({ radius: radii.compact })}
+          >
+            <Coins aria-hidden="true" size={24} color={colors.placeholder} className="mr-3" />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="얼마를 결제하셨나요?"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
+              className="w-full bg-transparent text-base font-bold text-text outline-none placeholder:text-placeholder"
+            />
+            <span className="ml-1 text-base font-semibold text-sub">원</span>
+          </div>
+
+          <div className="mt-10 space-y-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-compact border border-border bg-white text-[14px] font-bold text-sub"
+              >
+                <Camera size={18} />
+                사진 촬영
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-compact border border-border bg-white text-[14px] font-bold text-sub"
+              >
+                <ImageIcon size={18} />
+                갤러리 선택
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleManualSubmit}
+              disabled={isSubmitting || !storeName || !amount}
+              className={`flex h-[60px] w-full items-center justify-center rounded-card text-base font-bold text-white shadow-md transition-all ${
+                storeName && amount && !isSubmitting ? 'opacity-100' : 'opacity-50'
+              }`}
+              style={{ background: gradients.goldGradient }}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" /> : '등록 완료'}
+            </button>
+          </div>
+
+          <div style={{ height: spacing.bottomSafe }} />
+        </section>
+
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => handlePhotoChange(e, 'CAMERA')}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handlePhotoChange(e, 'GALLERY')}
+        />
 
         {/* OCR 로딩 오버레이 */}
         {ocrLoading && (
