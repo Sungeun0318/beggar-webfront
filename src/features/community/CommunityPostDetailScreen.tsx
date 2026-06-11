@@ -1,11 +1,11 @@
-import { MessageCircle, Send } from 'lucide-react'
+import { MessageCircle, Send, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { softBox } from '../../components/ui/softBox'
-import { createComment, getPostDetail } from '../../lib/api/community'
+import { createComment, deletePost, getPostDetail } from '../../lib/api/community'
 import { colors, radii, textStyles } from '../../theme/tokens'
 import type { RoomFreeComment, RoomFreePostDetail } from '../../types'
 
@@ -15,29 +15,61 @@ export function CommunityPostDetailScreen() {
   const [post, setPost] = useState<RoomFreePostDetail | null>(null)
   const [comment, setComment] = useState('')
   const [localComments, setLocalComments] = useState<RoomFreeComment[]>([])
+  const myName = localStorage.getItem('userName')
 
-  useEffect(() => {
-    void getPostDetail(Number(id ?? 1)).then((detail) => {
+  const fetchPostDetail = async () => {
+    try {
+      const detail = await getPostDetail(Number(id ?? 1))
       setPost(detail)
       setLocalComments(detail.comments)
-    })
+    } catch (err) {
+      console.error('게시글 상세 로딩 실패:', err)
+    }
+  }
+
+  useEffect(() => {
+    void fetchPostDetail()
   }, [id])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const nextComment = comment.trim()
     if (!nextComment || !post) return
 
-    void createComment(post.id, nextComment)
-    setLocalComments((prev) => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        author: '거지판다',
-        content: nextComment,
-        createdAt: '방금 전',
-      },
-    ])
-    setComment('')
+    const name = myName || '익명'
+
+    try {
+      await createComment(post.id, nextComment)
+      setComment('')
+      
+      // 즉시 반영을 위한 로컬 상태 업데이트
+      setLocalComments((prev) => [
+        ...prev,
+        {
+          id: Date.now(), // 임시 ID
+          author: name,
+          content: nextComment,
+          createdAt: '방금 전',
+        },
+      ])
+
+      // 서버 데이터와 동기화
+      void fetchPostDetail()
+    } catch (err) {
+      console.error('댓글 전송 실패:', err)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!post) return
+    if (!window.confirm('정말 이 게시글을 삭제하시겠습니까?')) return
+
+    try {
+      await deletePost(post.id)
+      navigate('/community')
+    } catch (err) {
+      console.error('게시글 삭제 실패:', err)
+      alert('게시글 삭제에 실패했습니다. 본인 글이 맞는지 확인해주세요.')
+    }
   }
 
   return (
@@ -49,12 +81,24 @@ export function CommunityPostDetailScreen() {
           {post && (
             <>
               <article
-                className="px-5 py-5"
+                className="relative px-5 py-5"
                 style={softBox({ radius: radii.card, shadow: true })}
               >
-                <span className="w-fit rounded-chip bg-accentBg px-3 py-1.5 text-[11px] font-bold text-accent">
-                  {post.tag}
-                </span>
+                <div className="flex items-start justify-between">
+                  <span className="w-fit rounded-chip bg-accentBg px-3 py-1.5 text-[11px] font-bold text-accent">
+                    {post.tag}
+                  </span>
+                  {post.author === myName && (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="p-1 text-lightSub hover:text-red-500 transition-colors"
+                      aria-label="게시글 삭제"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
                 <h1 className="mt-4 text-[20px] font-extrabold leading-[1.35] text-text">
                   {post.title}
                 </h1>

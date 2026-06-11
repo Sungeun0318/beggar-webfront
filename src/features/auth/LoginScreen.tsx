@@ -11,7 +11,6 @@ import {
   consumeKakaoCode,
   getKakaoRedirectUri,
 } from '../../lib/kakao'
-import { currentUser } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 
@@ -53,7 +52,7 @@ function AuthTextField({
 
 export function LoginScreen() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState(currentUser.email)
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

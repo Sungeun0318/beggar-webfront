@@ -48,7 +48,9 @@ function App() {
         <Route path="/room/create" element={<CreateRoomScreen />} />
         <Route path="/room/invite/:roomNo" element={<InviteRoomScreen />} />
         <Route path="/room/join/:code" element={<JoinRoomScreen />} />
+        <Route path="/room/join" element={<JoinRoomScreen />} />
         <Route path="/join/:code" element={<JoinRoomScreen />} />
+        <Route path="/join" element={<JoinRoomScreen />} />
         <Route path="/budget/input/:roomNo" element={<BudgetInputScreen />} />
         <Route path="/budget/result/:roomNo" element={<BudgetResultScreen />} />
         <Route path="/recommend" element={<RecommendationScreen />} />

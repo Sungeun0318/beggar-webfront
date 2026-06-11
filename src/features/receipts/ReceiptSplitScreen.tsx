@@ -216,7 +216,7 @@ export function ReceiptSplitScreen() {
               </div>
               <div className="ml-3">
                 <h1 className="text-[22px] font-black text-text">
-                  분할 영수증 
+                  분할 영수증
                 </h1>
                 <p className="mt-1 text-[13px] font-semibold text-sub">
                   내가 결제한 영수증 정보를 입력해요.

@@ -323,7 +323,7 @@ export function ReceiptRegisterScreen() {
             </div>
 
             {showResults && (
-              <div 
+              <div
                 className="absolute top-[65px] left-0 right-0 z-50 max-h-[240px] overflow-y-auto bg-white shadow-lg"
                 style={{ borderRadius: radii.compact, border: `1px solid ${colors.border}` }}
               >
@@ -344,7 +344,7 @@ export function ReceiptRegisterScreen() {
               </div>
             )}
           </div>
-          
+
           <div className="h-7" />
           <SectionTitle text="결제 금액을 입력해주세요" />
           <div className="h-[13px]" />
