@@ -36,6 +36,7 @@ export function CommunityPostDetailScreen() {
     if (!nextComment || !post) return
 
     const name = myName || '익명'
+    const myProfileImage = localStorage.getItem('profileImageUrl')
 
     try {
       await createComment(post.id, nextComment)
@@ -49,6 +50,7 @@ export function CommunityPostDetailScreen() {
           author: name,
           content: nextComment,
           createdAt: '방금 전',
+          authorProfileImageUrl: myProfileImage || undefined,
         },
       ])
 
@@ -93,9 +95,9 @@ export function CommunityPostDetailScreen() {
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center">
                     <div className="h-8 w-8 overflow-hidden rounded-full bg-muted">
-                      {post.authorProfileImageUrl ? (
+                      {(post.authorProfileImageUrl || (post as any).profileImageUrl) ? (
                         <img
-                          src={post.authorProfileImageUrl}
+                          src={post.authorProfileImageUrl || (post as any).profileImageUrl}
                           alt={post.author}
                           className="h-full w-full object-cover"
                         />
@@ -154,9 +156,9 @@ export function CommunityPostDetailScreen() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="h-6 w-6 overflow-hidden rounded-full bg-muted">
-                          {comment.authorProfileImageUrl ? (
+                          {(comment.authorProfileImageUrl || (comment as any).profileImageUrl) ? (
                             <img
-                              src={comment.authorProfileImageUrl}
+                              src={comment.authorProfileImageUrl || (comment as any).profileImageUrl}
                               alt={comment.author}
                               className="h-full w-full object-cover"
                             />

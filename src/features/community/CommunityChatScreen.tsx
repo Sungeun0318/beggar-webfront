@@ -15,9 +15,9 @@ function ChatBubble({ chat }: { chat: RoomFreeChat }) {
     <div className={`flex ${chat.isMine ? 'justify-end' : 'justify-start'}`}>
       {!chat.isMine && (
         <div className="mr-2.5 mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full bg-muted">
-          {chat.senderProfileImageUrl ? (
+          {(chat.senderProfileImageUrl || (chat as any).profileImageUrl) ? (
             <img
-              src={chat.senderProfileImageUrl}
+              src={chat.senderProfileImageUrl || (chat as any).profileImageUrl}
               alt={chat.sender}
               className="h-full w-full object-cover"
             />
