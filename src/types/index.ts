@@ -23,6 +23,8 @@ export type Room = {
 }
 
 export type Member = {
+  roomMemberId?: number
+  userNo?: number
   name: string
   status: string
   mine: boolean
