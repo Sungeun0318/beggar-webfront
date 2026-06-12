@@ -17,7 +17,7 @@ jobs:                             # [필수] 작업(Job) 집합 정의
       - name: Set up Node.js                    # [필수] Node.js 설치
         uses: actions/setup-node@v3             # [필수] 노드 설정 액션
         with:
-          node-version: '20'                    # [필수] 프로젝트 Node.js 버전 정의
+          node-version: '20'                    # [필수] 프로젝트 Node.js버전 정의
 
       # 3. 배포 환경 파일 생성
       - name: Create .env file                  # [필수] 배포환경 환경변수 파일 생성 
