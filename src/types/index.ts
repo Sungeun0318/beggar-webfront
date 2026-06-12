@@ -3,6 +3,26 @@ export type User = {
   name: string
   email: string
   profileImageUrl?: string
+  score?: number
+  title?: string
+}
+
+export type UserTitle = {
+  id: string
+  title: string
+  description: string
+  minScore: number
+  maxScore: number
+  scoreRange: string
+  unlocked: boolean
+  selected: boolean
+}
+
+export type UserTitleManagement = {
+  currentTitle: string
+  selectedTitleId?: string
+  score: number
+  titles: UserTitle[]
 }
 
 export type Room = {
