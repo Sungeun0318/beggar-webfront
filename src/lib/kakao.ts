@@ -91,14 +91,15 @@ export async function authorizeWithKakao() {
 export async function shareRoomInvitation({
   roomName,
   roomCode,
+  inviteUrl,
 }: {
   roomName: string
   roomCode: string
+  inviteUrl?: string
 }) {
   const kakao = await ensureKakaoInitialized()
 
-  // 초대 링크: /join?code={roomCode}
-  const inviteUrl = `${window.location.origin}/join?code=${roomCode}`
+  const nextInviteUrl = inviteUrl || `${window.location.origin}/join/${roomCode}`
 
   kakao.Share.sendDefault({
     objectType: 'feed',
@@ -108,16 +109,16 @@ export async function shareRoomInvitation({
       imageUrl:
         'https://raw.githubusercontent.com/f-lab-edu/beggar-webfront/main/public/assets/images/figma/mascot_celebration.png',
       link: {
-        mobileWebUrl: inviteUrl,
-        webUrl: inviteUrl,
+        mobileWebUrl: nextInviteUrl,
+        webUrl: nextInviteUrl,
       },
     },
     buttons: [
       {
         title: '방 참여하기',
         link: {
-          mobileWebUrl: inviteUrl,
-          webUrl: inviteUrl,
+          mobileWebUrl: nextInviteUrl,
+          webUrl: nextInviteUrl,
         },
       },
     ],
