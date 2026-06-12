@@ -139,6 +139,7 @@ export type RoomFreePost = {
   tag: string
   commentCount: number
   createdAt: string
+  authorProfileImageUrl?: string
 }
 
 export type RoomFreeComment = {
@@ -146,6 +147,7 @@ export type RoomFreeComment = {
   author: string
   content: string
   createdAt: string
+  authorProfileImageUrl?: string
 }
 
 export type RoomFreePostDetail = RoomFreePost & {
@@ -158,4 +160,5 @@ export type RoomFreeChat = {
   message: string
   createdAt: string
   isMine: boolean
+  senderProfileImageUrl?: string
 }
