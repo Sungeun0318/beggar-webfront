@@ -20,7 +20,7 @@ jobs:                             # [필수] 작업(Job) 집합 정의
           node-version: '20'                    # [필수] 프로젝트 Node.js 버전 정의
 
       # 3. 배포 환경 파일 생성
-      - name: Create .env file                  # [필수] 배포 환경 환경변수 파일 생성 
+      - name: Create .env file                  # [필수] 배포환경 환경변수 파일 생성 
         run: |
           echo "VITE_API_BASE_URL=${{ secrets.API_BASE_URL }}" >> .env
           echo "VITE_KAKAO_JS_KEY=${{ secrets.VITE_KAKAO_JS_KEY }}" >> .env
