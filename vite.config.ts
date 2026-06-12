@@ -15,9 +15,7 @@ export default defineConfig({
       '/users': 'http://127.0.0.1:8080',
       '/rooms': 'http://127.0.0.1:8080',
       '/locations': 'http://127.0.0.1:8080',
-      '/api': 'http://127.0.0.1:8080',
-      '/community/posts': 'http://127.0.0.1:8080',
-      '/community/chats': 'http://127.0.0.1:8080',
+      '/community': 'http://127.0.0.1:8080',
       '/ws-stomp': {
         target: 'http://127.0.0.1:8080',
         ws: true,
