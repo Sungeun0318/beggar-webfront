@@ -16,7 +16,6 @@ declare global {
 }
 
 const kakaoSdkUrl = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js'
-const defaultKakaoJsKey = 'dc879caeb8ec5f17221380f04d83fdc8'
 let sdkPromise: Promise<KakaoSdk> | null = null
 
 async function loadKakaoSdk() {
@@ -48,7 +47,7 @@ async function loadKakaoSdk() {
 }
 
 async function ensureKakaoInitialized() {
-  const appKey = import.meta.env.VITE_KAKAO_JS_KEY ?? defaultKakaoJsKey
+  const appKey = import.meta.env.VITE_KAKAO_JS_KEY
 
   if (!appKey) {
     throw new Error('VITE_KAKAO_JS_KEY가 설정되지 않았어요.')
