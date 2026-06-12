@@ -18,6 +18,26 @@ export class WebSocketClient {
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
+      onDisconnect: () => {
+        this.connected = false;
+        this.connectionPromise = null;
+      },
+      onWebSocketClose: (event) => {
+        this.connected = false;
+        this.connectionPromise = null;
+        console.warn("WebSocket closed:", {
+          code: event.code,
+          reason: event.reason,
+        });
+      },
+      onWebSocketError: (event) => {
+        this.connected = false;
+        this.connectionPromise = null;
+        console.error("WebSocket connection error:", {
+          socketUrl: SOCKET_URL,
+          event,
+        });
+      },
     });
   }
 

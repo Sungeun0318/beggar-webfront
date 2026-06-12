@@ -1,5 +1,5 @@
 import { Edit3, Info, Loader2 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 
 import { AppHeaderTitled } from "../../components/AppHeader"
@@ -30,20 +30,27 @@ export function BudgetInputScreen() {
   const [submitMessage, setSubmitMessage] = useState("")
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [submittedCount, setSubmittedCount] = useState(0)
+  const resultNavigationStartedRef = useRef(false)
 
   const goToResult = useCallback(() => {
     navigate(`/budget/result/${targetRoomNo}`)
   }, [navigate, targetRoomNo])
 
   const goToResultIfReady = useCallback(async () => {
+    if (resultNavigationStartedRef.current) {
+      return true
+    }
+
     try {
       await getBudgetResult(targetRoomNo)
+      resultNavigationStartedRef.current = true
       goToResult()
       return true
     } catch (firstError) {
       try {
         await confirmBudget(targetRoomNo)
         await getBudgetResult(targetRoomNo)
+        resultNavigationStartedRef.current = true
         goToResult()
         return true
       } catch (secondError) {
@@ -88,6 +95,34 @@ export function BudgetInputScreen() {
     }
   }
 
+  const refreshBudgetProgress = useCallback(async () => {
+    const membersData = await getRoomMembers(targetRoomNo)
+    setRoomMembers(membersData)
+
+    const nextSubmittedCount = membersData.filter((member) => member.budgetSubmitted).length
+    setSubmittedCount(nextSubmittedCount)
+
+    if (membersData.length > 0 && nextSubmittedCount >= membersData.length) {
+      return goToResultIfReady()
+    }
+
+    return false
+  }, [goToResultIfReady, targetRoomNo])
+
+  const markMemberBudgetSubmitted = useCallback((submittedUserNo?: number) => {
+    if (!submittedUserNo) {
+      return
+    }
+
+    setRoomMembers((prevMembers) =>
+      prevMembers.map((member) =>
+        member.userNo === submittedUserNo
+          ? { ...member, status: "제출 완료", budgetSubmitted: true }
+          : member,
+      ),
+    )
+  }, [])
+
   useEffect(() => {
     loadRoomState()
 
@@ -102,9 +137,13 @@ export function BudgetInputScreen() {
         if (event.type === "BUDGET_SUBMITTED") {
           const nextSubmittedCount = Number(event.data?.submittedCount) || 0
           const nextMemberCount = Number(event.data?.memberCount) || 0
+          const submittedUserNo = Number(event.data?.userNo) || undefined
 
+          markMemberBudgetSubmitted(submittedUserNo)
           setSubmittedCount(nextSubmittedCount)
-          getRoomMembers(targetRoomNo).then(setRoomMembers)
+          window.setTimeout(() => {
+            getRoomMembers(targetRoomNo).then(setRoomMembers)
+          }, 500)
 
           if (nextMemberCount > 0 && nextSubmittedCount >= nextMemberCount) {
             await goToResultIfReady()
@@ -135,9 +174,12 @@ export function BudgetInputScreen() {
       wsClient.subscribe(`/topic/rooms/${targetRoomNo}/budget`, (message) => {
         const event = JSON.parse(message.body)
         if (event.type === "BUDGET_SUBMITTED") {
+          const submittedUserNo = Number(event.data?.userNo) || undefined
+          markMemberBudgetSubmitted(submittedUserNo)
           setSubmittedCount(event.data.submittedCount)
-          // 멤버 목록을 다시 불러와 제출 완료 처리 확인
-          getRoomMembers(targetRoomNo).then(setRoomMembers)
+          window.setTimeout(() => {
+            getRoomMembers(targetRoomNo).then(setRoomMembers)
+          }, 500)
           if (event.data.memberCount > 0 && event.data.submittedCount >= event.data.memberCount) {
             void goToResultIfReady()
           }
@@ -166,7 +208,42 @@ export function BudgetInputScreen() {
     return () => {
       wsClient.disconnect()
     }
-  }, [targetRoomNo, navigate, goToResult, goToResultIfReady])
+  }, [targetRoomNo, navigate, goToResult, goToResultIfReady, markMemberBudgetSubmitted])
+
+  useEffect(() => {
+    if (!hasSubmitted || resultNavigationStartedRef.current) {
+      return
+    }
+
+    let stopped = false
+    let isPolling = false
+
+    const pollBudgetProgress = async () => {
+      if (isPolling || stopped || resultNavigationStartedRef.current) {
+        return
+      }
+
+      isPolling = true
+      try {
+        const moved = await refreshBudgetProgress()
+        if (moved) {
+          stopped = true
+        }
+      } catch (error) {
+        console.error("예산 제출 상태 동기화 실패:", error)
+      } finally {
+        isPolling = false
+      }
+    }
+
+    void pollBudgetProgress()
+    const timer = window.setInterval(pollBudgetProgress, 2000)
+
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [hasSubmitted, refreshBudgetProgress])
 
   const startEditing = () => {
     setDraftAmount(String(amount))
@@ -186,16 +263,9 @@ export function BudgetInputScreen() {
       await submitBudget(targetRoomNo, amount)
       setHasSubmitted(true)
       setSubmitMessage("예산이 제출되었어요! 모든 친구가 입력하면 결과 화면으로 넘어갑니다.")
-      const membersData = await getRoomMembers(targetRoomNo)
-      setRoomMembers(membersData)
-      const nextSubmittedCount = membersData.filter((m) => m.budgetSubmitted).length
-      setSubmittedCount(nextSubmittedCount)
-
-      if (membersData.length > 0 && nextSubmittedCount >= membersData.length) {
-        const moved = await goToResultIfReady()
-        if (!moved) {
-          setSubmitMessage("모든 친구가 제출했지만 결과 계산이 아직 끝나지 않았어요. 잠시 후 다시 시도해 주세요.")
-        }
+      const moved = await refreshBudgetProgress()
+      if (!moved) {
+        setSubmitMessage("예산이 제출되었어요! 모든 친구가 입력하면 결과 화면으로 넘어갑니다.")
       }
     } catch (error) {
       alert("예산 제출에 실패했습니다.")
@@ -272,9 +342,9 @@ export function BudgetInputScreen() {
           <div className="h-3.5" />
           {roomMembers.map((member) => (
             <ParticipantTile
-              key={member.name}
+              key={member.userNo ?? member.name}
               name={member.name}
-              status={member.budgetSubmitted ? "제출 완료" : "입장 완료"}
+              status={member.budgetSubmitted || member.status === "제출 완료" ? "제출 완료" : "입장 완료"}
               active={member.mine}
             />
           ))}
