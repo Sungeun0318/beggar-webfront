@@ -8,12 +8,25 @@ import { PhoneFrame } from "../../components/PhoneFrame"
 import { PrimaryButton } from "../../components/PrimaryButton"
 import { SectionTitle } from "../../components/SectionTitle"
 import { confirmBudget, getBudgetResult, submitBudget } from "../../lib/api/budget"
+import { ApiError } from "../../lib/api/client"
 import { getMyBudget, getRoom, getRoomMembers } from "../../lib/api/rooms"
 import { wsClient } from "../../lib/websocket"
 import { money } from "../../lib/format"
 import { colors, radii, spacing } from "../../theme/tokens"
 import { softBox } from "../../components/ui/softBox"
 import type { Member, Room } from "../../types"
+
+function getSubmittedBudgetAmount(myBudgetData: any) {
+  if (typeof myBudgetData === "number") {
+    return myBudgetData
+  }
+
+  return myBudgetData?.budgetAmount ?? myBudgetData?.amount ?? null
+}
+
+function isBudgetDoneStatus(status?: string) {
+  return status === "BUDGET_DONE" || status === "ACTIVE" || status === "ENDED"
+}
 
 export function BudgetInputScreen() {
   const navigate = useNavigate()
@@ -71,18 +84,28 @@ export function BudgetInputScreen() {
         getMyBudget(targetRoomNo).catch(() => null),
       ])
       setRoom(roomData)
-      setRoomMembers(membersData)
-      setSubmittedCount(membersData.filter(m => m.budgetSubmitted).length)
+      if (isBudgetDoneStatus(roomData.status)) {
+        void goToResultIfReady()
+      }
+
+      const budgetValue = getSubmittedBudgetAmount(myBudgetData)
+      const hasMyBudget = budgetValue !== null && budgetValue !== undefined
+      const normalizedMembers = membersData.map((member) =>
+        member.mine && hasMyBudget
+          ? { ...member, status: "제출 완료", budgetSubmitted: true }
+          : member,
+      )
+      setRoomMembers(normalizedMembers)
+      setSubmittedCount(normalizedMembers.filter(m => m.budgetSubmitted).length)
       if (
-        membersData.length > 0 &&
-        membersData.every((member) => member.budgetSubmitted)
+        normalizedMembers.length > 0 &&
+        normalizedMembers.every((member) => member.budgetSubmitted)
       ) {
         void goToResultIfReady()
       }
 
       // 기존에 입력한 예산이 있다면 불러오기
-      const budgetValue = myBudgetData?.budgetAmount ?? myBudgetData?.amount
-      if (myBudgetData && budgetValue) {
+      if (hasMyBudget) {
         setAmount(budgetValue)
         setDraftAmount(String(budgetValue))
         setHasSubmitted(true)
@@ -100,7 +123,7 @@ export function BudgetInputScreen() {
       getRoomMembers(targetRoomNo),
       getMyBudget(targetRoomNo).catch(() => null),
     ])
-    const myBudgetSubmitted = myBudgetData !== null && myBudgetData !== undefined
+    const myBudgetSubmitted = getSubmittedBudgetAmount(myBudgetData) !== null
     const normalizedMembers = membersData.map((member) =>
       member.mine && myBudgetSubmitted
         ? { ...member, status: "제출 완료", budgetSubmitted: true }
@@ -298,6 +321,16 @@ export function BudgetInputScreen() {
         setSubmitMessage("예산이 제출되었어요! 모든 친구가 입력하면 결과 화면으로 넘어갑니다.")
       }
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 400 &&
+        error.message.includes("BUDGET_DONE")
+      ) {
+        setHasSubmitted(true)
+        await goToResultIfReady()
+        return
+      }
+
       alert("예산 제출에 실패했습니다.")
     } finally {
       setIsLoading(false)
