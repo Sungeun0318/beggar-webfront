@@ -13,6 +13,21 @@ import type { RoomFreeChat } from '../../types'
 function ChatBubble({ chat }: { chat: RoomFreeChat }) {
   return (
     <div className={`flex ${chat.isMine ? 'justify-end' : 'justify-start'}`}>
+      {!chat.isMine && (
+        <div className="mr-2.5 mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full bg-muted">
+          {chat.senderProfileImageUrl ? (
+            <img
+              src={chat.senderProfileImageUrl}
+              alt={chat.sender}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-accent/10 text-[11px] font-bold text-accent">
+              {chat.sender[0]}
+            </div>
+          )}
+        </div>
+      )}
       <div className={`max-w-[258px] ${chat.isMine ? 'items-end' : 'items-start'}`}>
         {!chat.isMine && (
           <p className="mb-1.5 text-[12px] font-bold text-darkSub">
@@ -31,7 +46,7 @@ function ChatBubble({ chat }: { chat: RoomFreeChat }) {
               : '0 4px 12px rgba(0, 0, 0, 0.04)',
           }}
         >
-          <p className="text-[14px] font-semibold leading-[1.5]">
+          <p className="text-[14px] font-semibold leading-[1.55]">
             {chat.message}
           </p>
         </div>

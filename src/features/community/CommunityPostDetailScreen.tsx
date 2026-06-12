@@ -84,10 +84,34 @@ export function CommunityPostDetailScreen() {
                 className="relative px-5 py-5"
                 style={softBox({ radius: radii.card, shadow: true })}
               >
-                <div className="flex items-start justify-between">
-                  <span className="w-fit rounded-chip bg-accentBg px-3 py-1.5 text-[11px] font-bold text-accent">
-                    {post.tag}
-                  </span>
+                <span className="w-fit rounded-chip bg-accentBg px-3 py-1.5 text-[11px] font-bold text-accent">
+                  {post.tag}
+                </span>
+                <h1 className="mt-4 text-[20px] font-extrabold leading-[1.35] text-text">
+                  {post.title}
+                </h1>
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 overflow-hidden rounded-full bg-muted">
+                      {post.authorProfileImageUrl ? (
+                        <img
+                          src={post.authorProfileImageUrl}
+                          alt={post.author}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-accent/10 text-[10px] font-bold text-accent">
+                          {post.author[0]}
+                        </div>
+                      )}
+                    </div>
+                    <p className="ml-2.5 text-[12px] font-bold text-text">
+                      {post.author}{' '}
+                      <span className="ml-1 font-semibold text-lightSub">
+                        · {post.createdAt}
+                      </span>
+                    </p>
+                  </div>
                   {post.author === myName && (
                     <button
                       type="button"
@@ -99,12 +123,6 @@ export function CommunityPostDetailScreen() {
                     </button>
                   )}
                 </div>
-                <h1 className="mt-4 text-[20px] font-extrabold leading-[1.35] text-text">
-                  {post.title}
-                </h1>
-                <p className="mt-2 text-[12px] font-semibold text-lightSub">
-                  {post.author} · {post.createdAt}
-                </p>
                 <div className="mt-5 h-px bg-border" />
                 <p className="mt-5 whitespace-pre-line text-[15px] font-semibold leading-[1.7] text-darkSub">
                   {post.content}
@@ -134,9 +152,24 @@ export function CommunityPostDetailScreen() {
                     style={softBox({ radius: radii.compact })}
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-[14px] font-extrabold text-text">
-                        {comment.author}
-                      </p>
+                      <div className="flex items-center">
+                        <div className="h-6 w-6 overflow-hidden rounded-full bg-muted">
+                          {comment.authorProfileImageUrl ? (
+                            <img
+                              src={comment.authorProfileImageUrl}
+                              alt={comment.author}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-accent/10 text-[9px] font-bold text-accent">
+                              {comment.author[0]}
+                            </div>
+                          )}
+                        </div>
+                        <p className="ml-2 text-[13px] font-bold text-text">
+                          {comment.author}
+                        </p>
+                      </div>
                       <p className="text-[11px] font-semibold text-lightSub">
                         {comment.createdAt}
                       </p>
