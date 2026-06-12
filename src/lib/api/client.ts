@@ -7,6 +7,20 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
+type TokenRefreshData = {
+  accessToken: string
+  refreshToken?: string
+  userNo?: number
+  userName?: string
+}
+
+type ApiResponse<T> = {
+  success: boolean
+  data: T
+  code?: string
+  message?: string
+}
+
 export class ApiError extends Error {
   status: number
   data: unknown
@@ -38,10 +52,59 @@ function buildUrl(path: string, query?: Query) {
   return url.toString()
 }
 
+function storeTokens(data: TokenRefreshData) {
+  localStorage.setItem('accessToken', data.accessToken)
+  if (data.refreshToken) {
+    localStorage.setItem('refreshToken', data.refreshToken)
+  }
+  if (data.userNo !== undefined) {
+    localStorage.setItem('userNo', String(data.userNo))
+  }
+  if (data.userName) {
+    localStorage.setItem('userName', data.userName)
+  }
+}
+
+function clearTokens() {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+}
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken')
+  if (!refreshToken) {
+    return false
+  }
+
+  const response = await fetch(buildUrl('/auth/refresh'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refreshToken }),
+  })
+
+  if (!response.ok) {
+    clearTokens()
+    return false
+  }
+
+  const payload = (await response.json()) as ApiResponse<TokenRefreshData>
+  if (!payload.data?.accessToken) {
+    clearTokens()
+    return false
+  }
+
+  storeTokens(payload.data)
+  return true
+}
+
 async function request<T>(
   method: string,
   path: string,
   { query, body, headers: customHeaders }: RequestOptions = {},
+  retryOnUnauthorized = true,
 ): Promise<T> {
   const headers = new Headers({ Accept: 'application/json', ...customHeaders })
   const accessToken = localStorage.getItem('accessToken')
@@ -75,9 +138,15 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && retryOnUnauthorized && path !== '/auth/refresh') {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) {
+        return request<T>(method, path, { query, body, headers: customHeaders }, false)
+      }
+    }
+
     if (response.status === 401) {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      clearTokens()
     }
 
     // 401 리다이렉트는 인증 화면 연동 단계에서 처리한다.
