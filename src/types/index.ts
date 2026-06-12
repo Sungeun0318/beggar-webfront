@@ -35,6 +35,26 @@ export type BudgetResult = {
   totalBudget: number
 }
 
+export type BeggarScore = {
+  roomNo: number
+  score: number
+  title: string
+  totalSpentAmount: number
+  totalSavedAmount: number
+  goodPriceVerifiedCount: number
+  budgetComplianceRate: number
+  avgSavingsRatio: number
+  lastCalculatedAt: string
+}
+
+export type RankingEntry = {
+  rank: number
+  roomNo: number
+  roomName: string
+  score: number
+  title: string
+}
+
 export type Receipt = {
   id?: number
   no?: number
