@@ -2,7 +2,7 @@ name: React Client Deploy to S3   # [필수] GitHub Actions 이름 (가독성 �
 
 on:                                               # [필수] 언제 실행할지 정의
   push:                                           # [필수] push 이벤트 기반 실행
-    branches: [ "feat/connect-deployed-backend" ] # [필수] feat/connect-deployed-backend 브랜치에 push될 때만 실행됨
+    branches: [ "feat/connect-deployed-backend", "main" ] # feat/connect-deployed-backend 및 main 브랜치에 push될 때 실행됨
 
 jobs:                             # [필수] 작업(Job) 집합 정의
   build-and-deploy:               # [필수] Job 이름
@@ -31,6 +31,9 @@ jobs:                             # [필수] 작업(Job) 집합 정의
         run: |
           npm install
           npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          VITE_KAKAO_JS_KEY: ${{ secrets.VITE_KAKAO_JS_KEY }}
         shell: bash                             # [필수] bash 쉘 사용
 
       # 5. AWS 자격 증명 설정
