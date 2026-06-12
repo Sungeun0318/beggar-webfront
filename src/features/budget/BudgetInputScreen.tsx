@@ -7,7 +7,7 @@ import { ParticipantTile } from "../../components/ParticipantTile"
 import { PhoneFrame } from "../../components/PhoneFrame"
 import { PrimaryButton } from "../../components/PrimaryButton"
 import { SectionTitle } from "../../components/SectionTitle"
-import { getBudgetResult, submitBudget } from "../../lib/api/budget"
+import { confirmBudget, getBudgetResult, submitBudget } from "../../lib/api/budget"
 import { getMyBudget, getRoom, getRoomMembers } from "../../lib/api/rooms"
 import { wsClient } from "../../lib/websocket"
 import { money } from "../../lib/format"
@@ -40,8 +40,19 @@ export function BudgetInputScreen() {
       await getBudgetResult(targetRoomNo)
       goToResult()
       return true
-    } catch {
-      return false
+    } catch (firstError) {
+      try {
+        await confirmBudget(targetRoomNo)
+        await getBudgetResult(targetRoomNo)
+        goToResult()
+        return true
+      } catch (secondError) {
+        console.error("예산 결과 확정/조회 실패:", {
+          firstError,
+          secondError,
+        })
+        return false
+      }
     }
   }, [goToResult, targetRoomNo])
 
@@ -55,6 +66,12 @@ export function BudgetInputScreen() {
       setRoom(roomData)
       setRoomMembers(membersData)
       setSubmittedCount(membersData.filter(m => m.budgetSubmitted).length)
+      if (
+        membersData.length > 0 &&
+        membersData.every((member) => member.budgetSubmitted)
+      ) {
+        void goToResultIfReady()
+      }
 
       // 기존에 입력한 예산이 있다면 불러오기
       const budgetValue = myBudgetData?.budgetAmount ?? myBudgetData?.amount
@@ -175,7 +192,10 @@ export function BudgetInputScreen() {
       setSubmittedCount(nextSubmittedCount)
 
       if (membersData.length > 0 && nextSubmittedCount >= membersData.length) {
-        await goToResultIfReady()
+        const moved = await goToResultIfReady()
+        if (!moved) {
+          setSubmitMessage("모든 친구가 제출했지만 결과 계산이 아직 끝나지 않았어요. 잠시 후 다시 시도해 주세요.")
+        }
       }
     } catch (error) {
       alert("예산 제출에 실패했습니다.")
