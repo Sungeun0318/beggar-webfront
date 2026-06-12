@@ -151,6 +151,7 @@ export function InviteRoomScreen() {
       await shareRoomInvitation({
         roomName: roomData.roomName,
         roomCode: roomData.roomCode,
+        inviteUrl,
       })
     } catch (err) {
       console.error('카카오 공유 실패:', err)
