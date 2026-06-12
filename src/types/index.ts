@@ -39,6 +39,7 @@ export type Receipt = {
   id?: number
   no?: number
   receiptId?: number
+  roomNo?: number
   receiptType?: 'COMBINED' | 'SPLIT' | 'PERSONAL' | string
   date: string
   room: string
@@ -55,6 +56,21 @@ export type Receipt = {
     userName?: string
     amount?: number
   }[]
+}
+
+export type ReceiptHistoryItem = {
+  receiptId: number
+  roomNo: number
+  roomName: string
+  storeName?: string
+  receiptType: 'COMBINED' | 'SPLIT' | string
+  amount: number
+  createdAt: string
+}
+
+export type ReceiptHistory = {
+  receipts: ReceiptHistoryItem[]
+  totalAmount: number
 }
 
 export type RecommendationResult = {

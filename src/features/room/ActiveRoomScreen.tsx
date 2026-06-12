@@ -228,27 +228,51 @@ export function ActiveRoomScreen() {
             </button>
           </div>
         </header>
-        <section className="px-5 pt-2" style={{ paddingBottom: 124 }}>
-          <SummaryRow
-            Icon={WalletCards}
-            label="오늘의 예산"
-            trailing={`${money(total)} 원`}
-            bg="#F4F6FF"
-          />
-          <div className="h-2.5" />
-          <button
-            type="button"
-            onClick={() => navigate(`/room/${roomNo}/rating`)}
-            className="w-full"
-          >
-            <SummaryRow
-              Icon={Trophy}
-              label="거지평가 보기"
-              trailing="순위 확인"
-              bg="#FFF6D8"
-            />
-          </button>
-          <div className="h-2.5" />
+        <section className="px-pageH pt-2" style={{ paddingBottom: 124 }}>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <SummaryRow
+                Icon={WalletCards}
+                label="오늘의 예산"
+                trailing={`${money(remaining)} 원`}
+                bg={remaining < 0 ? '#FFE8E8' : '#F4F6FF'}
+              />
+              <div className="px-4 pt-1">
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-border/50">
+                  <div 
+                    className={`h-full transition-all duration-700 ${remaining < 0 ? 'bg-danger' : 'bg-accent'}`}
+                    style={{ width: `${Math.min(Math.max((spent / (total || 1)) * 100, 0), 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between px-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-lightSub">지출</span>
+                    <span className={`text-[12px] font-black ${remaining < 0 ? 'text-danger' : 'text-text'}`}>
+                      {money(spent)}원
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-lightSub">전체 예산</span>
+                    <span className="text-[12px] font-bold text-sub">{money(total)}원</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/room/${roomNo}/rating`)}
+              className="w-full"
+            >
+              <SummaryRow
+                Icon={Trophy}
+                label="거지평가 보기"
+                trailing="순위 확인"
+                bg="#FFF6D8"
+              />
+            </button>
+          </div>
+          <div className="h-4" />
           <div
             className="inline-flex h-10 items-center px-[17px]"
             style={softBox({ radius: radii.card })}
@@ -305,17 +329,22 @@ export function ActiveRoomScreen() {
           <div className="h-3.5" />
           <div className="space-y-3">
             {receiptList.length > 0 ? (
-              receiptList.map((receipt, index) => (
-                <div key={receipt.id || index} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
-                  <ReceiptCard
-                    date={receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
-                    room={receipt.room || displayRoom.name}
-                    image={receipt.image || (receipt as any).imageUrl}
-                    title={receipt.title || (receipt as any).storeName || '이름 없는 지출'}
-                    amount={`${money(receipt.amount || (receipt as any).totalAmount || 0)}원`}
-                  />
-                </div>
-              ))
+              receiptList.map((receipt, index) => {
+                const prefix = receipt.receiptType === 'COMBINED' ? '[통합] ' : receipt.receiptType === 'SPLIT' ? '[분할] ' : ''
+                const title = (receipt.title || (receipt as any).storeName || '이름 없는 지출')
+                
+                return (
+                  <div key={receipt.id || index} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
+                    <ReceiptCard
+                      date={receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
+                      room={receipt.room || displayRoom.name}
+                      image={receipt.image || (receipt as any).imageUrl}
+                      title={`${prefix}${title}`}
+                      amount={`${money(receipt.amount || (receipt as any).totalAmount || 0)}원`}
+                    />
+                  </div>
+                )
+              })
             ) : (
               <div 
                 className="flex h-[96px] w-full flex-col items-center justify-center rounded-card border border-border bg-white text-sub"
@@ -480,6 +509,7 @@ export function ActiveRoomScreen() {
               <div className="p-6">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-[20px] font-black text-text leading-tight flex-1">
+                    {selectedReceipt.receiptType === 'COMBINED' ? '[통합] ' : selectedReceipt.receiptType === 'SPLIT' ? '[분할] ' : ''}
                     {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없는 지출'}
                   </h3>
                   <span className="text-[17px] font-black text-accent whitespace-nowrap">

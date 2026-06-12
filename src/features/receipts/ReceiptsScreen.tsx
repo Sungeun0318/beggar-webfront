@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppHeaderBrand } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { ReceiptCard } from '../../components/ReceiptCard'
-import { getRoomReceipts } from '../../lib/api/receipts'
+import { getMyReceipts, getReceiptDetail } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -16,9 +16,15 @@ function publicReceiptImage(image: string) {
   return `/${image}`
 }
 
+function validStoreName(name?: string) {
+  const normalized = name?.trim()
+  return Boolean(normalized && normalized !== '분석 중...')
+}
+
 export function ReceiptsScreen() {
   const navigate = useNavigate()
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
+  const [totalAmount, setTotalAmount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
 
@@ -26,8 +32,41 @@ export function ReceiptsScreen() {
     async function loadReceipts() {
       try {
         // 임시로 roomNo 1 사용
-        const data = await getRoomReceipts(1)
-        setReceiptList(data)
+        const data = await getMyReceipts()
+        const receipts = await Promise.all(data.receipts.map(async (receipt) => {
+          let detail = null
+
+          if (!validStoreName(receipt.storeName)) {
+            detail = await getReceiptDetail(receipt.roomNo, receipt.receiptId).catch(() => null)
+          }
+
+          const storeName =
+            validStoreName(receipt.storeName)
+              ? receipt.storeName
+              : validStoreName(detail?.storeName)
+                ? detail?.storeName
+                : validStoreName(detail?.title)
+                  ? detail?.title
+                  : ''
+
+          return {
+            receiptId: receipt.receiptId,
+            roomNo: receipt.roomNo,
+            date: receipt.createdAt?.slice(0, 10).replaceAll('-', '.') || '',
+            room: receipt.roomName,
+            image: detail?.image || detail?.imageUrl || '',
+            title: storeName || '이름 없는 지출',
+            storeName,
+            amount: detail?.amount || detail?.totalAmount || receipt.amount,
+            address: detail?.address,
+            createdAt: receipt.createdAt,
+            receiptType: receipt.receiptType,
+            splits: detail?.splits,
+          }
+        }))
+
+        setReceiptList(receipts)
+        setTotalAmount(data.totalAmount)
       } catch (error) {
         console.error('영수증 목록 로드 실패:', error)
       } finally {
@@ -36,11 +75,6 @@ export function ReceiptsScreen() {
     }
     loadReceipts()
   }, [])
-
-  const total = receiptList.reduce((sum, receipt) => {
-    const amount = receipt.amount || (receipt as any).totalAmount || 0
-    return sum + amount
-  }, 0)
 
   if (loading) {
     return (
@@ -82,7 +116,7 @@ export function ReceiptsScreen() {
                 이번 달 총 지출
               </p>
               <p className="mt-[5px] text-text">
-                <span className="text-[22px] font-black">{money(total)}</span>
+                <span className="text-[22px] font-black">{money(totalAmount)}</span>
                 <span className="text-base font-semibold text-sub">원</span>
               </p>
             </div>
@@ -96,6 +130,7 @@ export function ReceiptsScreen() {
             receiptList.map((receipt, index) => {
               const amount = receipt.amount || (receipt as any).totalAmount || 0
               const date = receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''
+              const prefix = receipt.receiptType === 'COMBINED' ? '[통합] ' : receipt.receiptType === 'SPLIT' ? '[분할] ' : ''
               const title = receipt.title || (receipt as any).storeName || '이름 없는 지출'
               const imageUrl = receipt.image || (receipt as any).imageUrl || ''
 
@@ -105,7 +140,7 @@ export function ReceiptsScreen() {
                     date={date}
                     room={receipt.room || '방 정보 없음'}
                     image={imageUrl ? publicReceiptImage(imageUrl) : undefined}
-                    title={title}
+                    title={`${prefix}${title}`}
                     amount={`${money(amount)}원`}
                     onClick={() => setSelectedReceipt(receipt)}
                   />
@@ -152,7 +187,8 @@ export function ReceiptsScreen() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-4 border-b border-border">
                     <span className="text-[15px] font-bold text-sub">가게명</span>
-                    <span className="text-[17px] font-extrabold text-text">
+                    <span className="text-[17px] font-extrabold text-text text-right">
+                      {selectedReceipt.receiptType === 'COMBINED' ? '[통합] ' : selectedReceipt.receiptType === 'SPLIT' ? '[분할] ' : ''}
                       {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없음'}
                     </span>
                   </div>
