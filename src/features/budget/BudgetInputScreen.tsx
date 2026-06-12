@@ -96,13 +96,22 @@ export function BudgetInputScreen() {
   }
 
   const refreshBudgetProgress = useCallback(async () => {
-    const membersData = await getRoomMembers(targetRoomNo)
-    setRoomMembers(membersData)
+    const [membersData, myBudgetData] = await Promise.all([
+      getRoomMembers(targetRoomNo),
+      getMyBudget(targetRoomNo).catch(() => null),
+    ])
+    const myBudgetSubmitted = myBudgetData !== null && myBudgetData !== undefined
+    const normalizedMembers = membersData.map((member) =>
+      member.mine && myBudgetSubmitted
+        ? { ...member, status: "제출 완료", budgetSubmitted: true }
+        : member,
+    )
+    setRoomMembers(normalizedMembers)
 
-    const nextSubmittedCount = membersData.filter((member) => member.budgetSubmitted).length
+    const nextSubmittedCount = normalizedMembers.filter((member) => member.budgetSubmitted).length
     setSubmittedCount(nextSubmittedCount)
 
-    if (membersData.length > 0 && nextSubmittedCount >= membersData.length) {
+    if (normalizedMembers.length > 0 && nextSubmittedCount >= normalizedMembers.length) {
       return goToResultIfReady()
     }
 
@@ -121,6 +130,26 @@ export function BudgetInputScreen() {
           : member,
       ),
     )
+  }, [])
+
+  const markCurrentMemberBudgetSubmitted = useCallback(() => {
+    setRoomMembers((prevMembers) => {
+      const alreadySubmitted = prevMembers.some(
+        (member) => member.mine && member.budgetSubmitted,
+      )
+
+      const nextMembers = prevMembers.map((member) =>
+        member.mine
+          ? { ...member, status: "제출 완료", budgetSubmitted: true }
+          : member,
+      )
+
+      if (!alreadySubmitted) {
+        setSubmittedCount((prevCount) => Math.min(prevCount + 1, nextMembers.length))
+      }
+
+      return nextMembers
+    })
   }, [])
 
   useEffect(() => {
@@ -262,6 +291,7 @@ export function BudgetInputScreen() {
     try {
       await submitBudget(targetRoomNo, amount)
       setHasSubmitted(true)
+      markCurrentMemberBudgetSubmitted()
       setSubmitMessage("예산이 제출되었어요! 모든 친구가 입력하면 결과 화면으로 넘어갑니다.")
       const moved = await refreshBudgetProgress()
       if (!moved) {
