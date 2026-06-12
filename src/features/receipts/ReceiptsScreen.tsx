@@ -130,6 +130,7 @@ export function ReceiptsScreen() {
             receiptList.map((receipt, index) => {
               const amount = receipt.amount || (receipt as any).totalAmount || 0
               const date = receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''
+              const prefix = receipt.receiptType === 'COMBINED' ? '[통합] ' : receipt.receiptType === 'SPLIT' ? '[분할] ' : ''
               const title = receipt.title || (receipt as any).storeName || '이름 없는 지출'
               const imageUrl = receipt.image || (receipt as any).imageUrl || ''
 
@@ -139,7 +140,7 @@ export function ReceiptsScreen() {
                     date={date}
                     room={receipt.room || '방 정보 없음'}
                     image={imageUrl ? publicReceiptImage(imageUrl) : undefined}
-                    title={title}
+                    title={`${prefix}${title}`}
                     amount={`${money(amount)}원`}
                     onClick={() => setSelectedReceipt(receipt)}
                   />
@@ -186,7 +187,8 @@ export function ReceiptsScreen() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-4 border-b border-border">
                     <span className="text-[15px] font-bold text-sub">가게명</span>
-                    <span className="text-[17px] font-extrabold text-text">
+                    <span className="text-[17px] font-extrabold text-text text-right">
+                      {selectedReceipt.receiptType === 'COMBINED' ? '[통합] ' : selectedReceipt.receiptType === 'SPLIT' ? '[분할] ' : ''}
                       {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없음'}
                     </span>
                   </div>
