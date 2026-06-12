@@ -1,5 +1,5 @@
 import { Edit3, Info, Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 
 import { AppHeaderTitled } from "../../components/AppHeader"
@@ -7,7 +7,7 @@ import { ParticipantTile } from "../../components/ParticipantTile"
 import { PhoneFrame } from "../../components/PhoneFrame"
 import { PrimaryButton } from "../../components/PrimaryButton"
 import { SectionTitle } from "../../components/SectionTitle"
-import { submitBudget } from "../../lib/api/budget"
+import { getBudgetResult, submitBudget } from "../../lib/api/budget"
 import { getMyBudget, getRoom, getRoomMembers } from "../../lib/api/rooms"
 import { wsClient } from "../../lib/websocket"
 import { money } from "../../lib/format"
@@ -30,6 +30,20 @@ export function BudgetInputScreen() {
   const [submitMessage, setSubmitMessage] = useState("")
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [submittedCount, setSubmittedCount] = useState(0)
+
+  const goToResult = useCallback(() => {
+    navigate(`/budget/result/${targetRoomNo}`)
+  }, [navigate, targetRoomNo])
+
+  const goToResultIfReady = useCallback(async () => {
+    try {
+      await getBudgetResult(targetRoomNo)
+      goToResult()
+      return true
+    } catch {
+      return false
+    }
+  }, [goToResult, targetRoomNo])
 
   const loadRoomState = async () => {
     try {
@@ -61,8 +75,35 @@ export function BudgetInputScreen() {
     loadRoomState()
 
     wsClient.connect().then(() => {
-      // 결과 화면으로 이동하는 공통 함수
-      const goToResult = () => navigate(`/budget/result/${targetRoomNo}`)
+      const handleRoomEvent = async (event: any) => {
+        if (event.type === "MEMBERS_UPDATED") {
+          setRoomMembers(event.data)
+          setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
+          return
+        }
+
+        if (event.type === "BUDGET_SUBMITTED") {
+          const nextSubmittedCount = Number(event.data?.submittedCount) || 0
+          const nextMemberCount = Number(event.data?.memberCount) || 0
+
+          setSubmittedCount(nextSubmittedCount)
+          getRoomMembers(targetRoomNo).then(setRoomMembers)
+
+          if (nextMemberCount > 0 && nextSubmittedCount >= nextMemberCount) {
+            await goToResultIfReady()
+          }
+          return
+        }
+
+        if (event.type === "BUDGET_CONFIRMED") {
+          goToResult()
+        }
+      }
+
+      // 백엔드는 모든 방 이벤트를 /topic/rooms/{roomNo} 단일 채널로 발행한다.
+      wsClient.subscribe(`/topic/rooms/${targetRoomNo}`, (message) => {
+        void handleRoomEvent(JSON.parse(message.body))
+      })
 
       // 1. 멤버 목록 실시간 반영
       wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
@@ -80,6 +121,9 @@ export function BudgetInputScreen() {
           setSubmittedCount(event.data.submittedCount)
           // 멤버 목록을 다시 불러와 제출 완료 처리 확인
           getRoomMembers(targetRoomNo).then(setRoomMembers)
+          if (event.data.memberCount > 0 && event.data.submittedCount >= event.data.memberCount) {
+            void goToResultIfReady()
+          }
         } else if (event.type === "BUDGET_CONFIRMED") {
           // 예산 토픽으로 확정 이벤트가 오는 경우 대응
           goToResult()
@@ -105,7 +149,7 @@ export function BudgetInputScreen() {
     return () => {
       wsClient.disconnect()
     }
-  }, [targetRoomNo, navigate])
+  }, [targetRoomNo, navigate, goToResult, goToResultIfReady])
 
   const startEditing = () => {
     setDraftAmount(String(amount))
@@ -125,6 +169,14 @@ export function BudgetInputScreen() {
       await submitBudget(targetRoomNo, amount)
       setHasSubmitted(true)
       setSubmitMessage("예산이 제출되었어요! 모든 친구가 입력하면 결과 화면으로 넘어갑니다.")
+      const membersData = await getRoomMembers(targetRoomNo)
+      setRoomMembers(membersData)
+      const nextSubmittedCount = membersData.filter((m) => m.budgetSubmitted).length
+      setSubmittedCount(nextSubmittedCount)
+
+      if (membersData.length > 0 && nextSubmittedCount >= membersData.length) {
+        await goToResultIfReady()
+      }
     } catch (error) {
       alert("예산 제출에 실패했습니다.")
     } finally {
