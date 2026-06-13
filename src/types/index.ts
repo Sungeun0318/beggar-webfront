@@ -87,6 +87,7 @@ export type Receipt = {
   room: string
   image: string
   imageUrl?: string
+  splitGroupId?: number
   title: string
   storeName?: string
   totalAmount?: number
@@ -98,6 +99,28 @@ export type Receipt = {
     userName?: string
     amount?: number
   }[]
+}
+
+export type SplitGroupItem = {
+  receiptId: number
+  uploaderUserNo: number
+  uploaderName: string
+  amount: number
+  imageUrl?: string
+}
+
+export type SplitGroup = {
+  splitGroupId: number
+  roomNo: number
+  storeName: string
+  address: string
+  status: 'OPEN' | 'CLOSED' | string
+  totalAmount: number
+  receiptCount: number
+  contributorCount: number
+  createdAt: string
+  closedAt?: string | null
+  items: SplitGroupItem[]
 }
 
 export type ReceiptHistoryItem = {
