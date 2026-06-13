@@ -17,6 +17,8 @@ import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import {
   getCurrentUser,
+  buildTitleManagement,
+  getTitleManagement,
   updateNickname,
   updateProfileImage,
   uploadProfileImage,
@@ -24,7 +26,7 @@ import {
 } from '../../lib/api/auth'
 import { currentUser } from '../../mocks'
 import { colors, radii, spacing } from '../../theme/tokens'
-import type { User as UserType } from '../../types'
+import type { User as UserType, UserTitleManagement } from '../../types'
 
 type MenuItemProps = {
   Icon: LucideIcon
@@ -56,7 +58,117 @@ function MenuItem({ Icon, title, subtitle, onTap }: MenuItemProps) {
   )
 }
 
+type TitleManagementPanelProps = {
+  management: UserTitleManagement | null
+  loading: boolean
+  error: string
+}
+
+function TitleManagementPanel({
+  management,
+  loading,
+  error,
+}: TitleManagementPanelProps) {
+  const score = management?.score ?? 0
+  const safeScore = Math.max(0, Math.min(score, 100))
+  const scoreLabel = Math.floor(score)
+  const currentTitle = management?.titles.find((item) => item.selected)
+  const nextTitle = management?.titles.find((item) => !item.unlocked)
+
+  return (
+    <section
+      className="rounded-card border bg-white p-4"
+      style={{ borderColor: colors.canvas, borderWidth: 0.65 }}
+    >
+      <div className="flex items-center">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-compact bg-accentBg">
+          <Award aria-hidden="true" size={22} color={colors.accent} />
+        </div>
+        <div className="ml-3 min-w-0 flex-1">
+          <h2 className="truncate text-base font-black text-text">칭호 관리</h2>
+          <p className="mt-0.5 truncate text-[13px] font-semibold text-sub">
+            거지력 점수에 따라 칭호가 자동으로 정해져요
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 flex h-[132px] items-center justify-center rounded-card bg-canvas">
+          <Loader2 className="animate-spin" size={22} color={colors.sub} />
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 rounded-card bg-accentBg p-3">
+            <button
+              type="button"
+              className="group relative flex w-full items-center justify-between gap-3 text-left focus-visible:outline-none"
+              aria-label={`${currentTitle?.title ?? management?.currentTitle ?? '아기 거지'} 칭호 정보 보기`}
+            >
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-sub">현재 칭호</p>
+                <p className="mt-0.5 truncate text-[22px] font-black text-text">
+                  {currentTitle?.title ?? management?.currentTitle ?? '아기 거지'}
+                </p>
+              </div>
+              <div className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-black text-accent">
+                {scoreLabel}점
+              </div>
+              <div
+                className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-[280px] rounded-compact bg-text px-3 py-3 text-[12px] font-semibold leading-5 text-white shadow-lg group-hover:block group-focus-visible:block"
+                role="tooltip"
+              >
+                <p className="font-extrabold">
+                  {currentTitle?.title ?? management?.currentTitle ?? '아기 거지'} · {currentTitle?.scoreRange ?? '0-19점'}
+                </p>
+                <p className="mt-1 text-white/85">
+                  {currentTitle?.description ?? '거지력 점수에 따라 자동으로 정해지는 칭호예요'}
+                </p>
+                <p className="mt-1 text-white/85">
+                  {nextTitle
+                    ? `다음 칭호 '${nextTitle.title}'까지 ${Math.floor(Math.max(0, nextTitle.minScore - score))}점 남았어요`
+                    : '최고 단계 칭호를 달성했어요'}
+                </p>
+                <div className="mt-2 space-y-1 border-t border-white/15 pt-2">
+                  {management?.titles.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-2 text-white/85"
+                    >
+                      <span className={item.selected ? 'font-extrabold text-white' : undefined}>
+                        {item.title}
+                      </span>
+                      <span>{item.scoreRange}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </button>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${safeScore}%` }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {error && (
+        <p className="mt-3 rounded-compact bg-accentBg px-3 py-2 text-[12px] font-semibold text-danger">
+          {error}
+        </p>
+      )}
+    </section>
+  )
+}
+
 function getStoredUser(): UserType {
+  const storedScore = localStorage.getItem('userScore')
+  const score =
+    storedScore !== null && Number.isFinite(Number(storedScore))
+      ? Number(storedScore)
+      : currentUser.score
+
   return {
     no: Number(localStorage.getItem('userNo')) || currentUser.no,
     name: localStorage.getItem('userName') || currentUser.name,
@@ -65,6 +177,8 @@ function getStoredUser(): UserType {
       localStorage.getItem('profileImageUrl') ||
       currentUser.profileImageUrl ||
       undefined,
+    score,
+    title: localStorage.getItem('userTitle') || currentUser.title,
   }
 }
 
@@ -78,23 +192,39 @@ export function MyPageScreen() {
   const [nicknameError, setNicknameError] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
+  const [titleManagement, setTitleManagement] =
+    useState<UserTitleManagement | null>(null)
+  const [isLoadingTitles, setIsLoadingTitles] = useState(true)
+  const [titleError, setTitleError] = useState('')
 
   useEffect(() => {
     let ignore = false
 
-    getCurrentUser()
-      .then((data) => {
+    async function loadMyPage() {
+      try {
+        const [data, titles] = await Promise.all([
+          getCurrentUser(),
+          getTitleManagement(),
+        ])
         if (ignore) return
         setUser((prev) => ({ ...prev, ...data }))
         setNicknameDraft(data.name)
-      })
-      .catch(() => {
+        setTitleManagement(titles)
+        setTitleError('')
+      } catch {
         if (!ignore) {
           const storedUser = getStoredUser()
           setUser(storedUser)
           setNicknameDraft(storedUser.name)
+          setTitleManagement(buildTitleManagement(storedUser))
+          setTitleError('')
         }
-      })
+      } finally {
+        if (!ignore) setIsLoadingTitles(false)
+      }
+    }
+
+    void loadMyPage()
 
     return () => {
       ignore = true
@@ -303,10 +433,17 @@ export function MyPageScreen() {
                       setNicknameError('')
                       setIsEditingNickname(true)
                     }}
-                    className="min-w-0 flex-1 truncate text-left text-[22px] font-black text-text hover:text-blue-600 hover:underline focus-visible:text-blue-600 focus-visible:underline focus-visible:outline-none"
+                    className="flex min-w-0 flex-1 items-center gap-2 truncate text-left focus-visible:outline-none"
                     aria-label="닉네임 수정"
                   >
-                    {user.name}
+                    <span className="truncate text-[22px] font-black text-text">
+                      {user.name}
+                    </span>
+                    {user.title && (
+                      <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">
+                        {user.title}
+                      </span>
+                    )}
                   </button>
                 )}
                 {isEditingNickname ? (
@@ -350,10 +487,10 @@ export function MyPageScreen() {
             </div>
           </div>
           <div className="h-6" />
-          <MenuItem
-            Icon={Award}
-            title="칭호 변경"
-            subtitle="내 칭호를 선택해요"
+          <TitleManagementPanel
+            management={titleManagement}
+            loading={isLoadingTitles}
+            error={titleError}
           />
           <div className="h-3" />
           <MenuItem

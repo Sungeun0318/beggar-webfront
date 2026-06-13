@@ -83,6 +83,14 @@ export async function createRoom(request: CreateRoomRequest): Promise<Room> {
   } as any
 }
 
+export async function deleteRoom(no: number): Promise<void> {
+  if (MOCK.rooms) {
+    return
+  }
+  // 실제 경로: DELETE /rooms/{no}
+  await client.del(`/rooms/${no}`)
+}
+
 export async function getRoom(no: number): Promise<Room> {
   if (MOCK.rooms) {
     return { ...room, no }
