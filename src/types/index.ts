@@ -3,6 +3,26 @@ export type User = {
   name: string
   email: string
   profileImageUrl?: string
+  score?: number
+  title?: string
+}
+
+export type UserTitle = {
+  id: string
+  title: string
+  description: string
+  minScore: number
+  maxScore: number
+  scoreRange: string
+  unlocked: boolean
+  selected: boolean
+}
+
+export type UserTitleManagement = {
+  currentTitle: string
+  selectedTitleId?: string
+  score: number
+  titles: UserTitle[]
 }
 
 export type Room = {
@@ -35,6 +55,26 @@ export type BudgetResult = {
   minBudgetPerPerson: number
   memberCount: number
   totalBudget: number
+}
+
+export type BeggarScore = {
+  roomNo: number
+  score: number
+  title: string
+  totalSpentAmount: number
+  totalSavedAmount: number
+  goodPriceVerifiedCount: number
+  budgetComplianceRate: number
+  avgSavingsRatio: number
+  lastCalculatedAt: string
+}
+
+export type RankingEntry = {
+  rank: number
+  roomNo: number
+  roomName: string
+  score: number
+  title: string
 }
 
 export type Receipt = {

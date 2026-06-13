@@ -1,5 +1,5 @@
 import { currentUser } from "../../mocks"
-import type { User } from "../../types"
+import type { User, UserTitle, UserTitleManagement } from "../../types"
 import { client } from "./client"
 import { MOCK } from "./mockMode"
 
@@ -33,6 +33,12 @@ type UserResponse = {
   role?: string
   gender?: number | null
   ageRange?: string | null
+  score?: number | string | null
+  beggarScore?: number | string | null
+  userScore?: number | string | null
+  title?: string | null
+  beggarTitle?: string | null
+  currentTitle?: string | null
 }
 
 type ApiResponse<T> = {
@@ -41,16 +47,124 @@ type ApiResponse<T> = {
   message: string
 }
 
+const defaultTitles: UserTitle[] = [
+  {
+    id: "baby",
+    title: "아기 거지",
+    description: "거지력 관리를 막 시작했어요",
+    minScore: 0,
+    maxScore: 19,
+    scoreRange: "0-19점",
+    unlocked: true,
+    selected: false,
+  },
+  {
+    id: "growing",
+    title: "성장하는 거지",
+    description: "예산 습관이 자라고 있어요",
+    minScore: 20,
+    maxScore: 39,
+    scoreRange: "20-39점",
+    unlocked: false,
+    selected: false,
+  },
+  {
+    id: "smart",
+    title: "알뜰한 거지",
+    description: "지출과 절약의 균형을 잡았어요",
+    minScore: 40,
+    maxScore: 59,
+    scoreRange: "40-59점",
+    unlocked: false,
+    selected: false,
+  },
+  {
+    id: "pro",
+    title: "프로 거지",
+    description: "착한가격업소와 예산을 잘 활용해요",
+    minScore: 60,
+    maxScore: 79,
+    scoreRange: "60-79점",
+    unlocked: false,
+    selected: false,
+  },
+  {
+    id: "legend",
+    title: "전설의 거지",
+    description: "친구들의 예산 수호자예요",
+    minScore: 80,
+    maxScore: 100,
+    scoreRange: "80-100점",
+    unlocked: false,
+    selected: false,
+  },
+]
+
+function toNumber(value: number | string | null | undefined) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
 function fromUserResponse(response: UserResponse): User {
+  const score =
+    toNumber(response.score) ??
+    toNumber(response.beggarScore) ??
+    toNumber(response.userScore)
+
   return {
     no: response.userNo,
     name: response.userName,
     email: response.email,
     profileImageUrl: response.profileImageUrl ?? undefined,
+    score,
+    title: response.title ?? response.beggarTitle ?? response.currentTitle ?? undefined,
+  }
+}
+
+function resolveTitleByScore(score: number) {
+  return (
+    defaultTitles.find((item) => score >= item.minScore && score <= item.maxScore) ??
+    defaultTitles[defaultTitles.length - 1]
+  )
+}
+
+export function buildTitleManagement(user: User): UserTitleManagement {
+  const score = user.score ?? 0
+  const scoreTitle = resolveTitleByScore(score)
+  const currentTitle = user.title || scoreTitle.title
+  const titles = defaultTitles.map((item) => ({
+    ...item,
+    unlocked: score >= item.minScore,
+    selected: item.title === currentTitle || item.id === scoreTitle.id,
+  }))
+
+  if (!titles.some((item) => item.selected)) {
+    const fallback = [...titles].reverse().find((item) => item.unlocked) ?? titles[0]
+    return {
+      currentTitle: fallback.title,
+      selectedTitleId: fallback.id,
+      score,
+      titles: titles.map((item) => ({ ...item, selected: item.id === fallback.id })),
+    }
+  }
+
+  const selected = titles.find((item) => item.selected)
+  return {
+    currentTitle: selected?.title ?? currentTitle,
+    selectedTitleId: selected?.id,
+    score,
+    titles,
   }
 }
 
 function localUser(): User {
+  const storedScore = toNumber(localStorage.getItem("userScore"))
+  const storedTitle = localStorage.getItem("userTitle") || undefined
+
   return {
     no: Number(localStorage.getItem("userNo")) || currentUser.no,
     name: localStorage.getItem("userName") || currentUser.name,
@@ -59,6 +173,8 @@ function localUser(): User {
       localStorage.getItem("profileImageUrl") ||
       currentUser.profileImageUrl ||
       undefined,
+    score: storedScore ?? currentUser.score,
+    title: storedTitle ?? currentUser.title,
   }
 }
 
@@ -69,6 +185,8 @@ function clearStoredUser() {
   localStorage.removeItem("userName")
   localStorage.removeItem("userEmail")
   localStorage.removeItem("profileImageUrl")
+  localStorage.removeItem("userScore")
+  localStorage.removeItem("userTitle")
 }
 
 export async function login({ email, password }: LoginRequest): Promise<User> {
@@ -130,8 +248,23 @@ export async function getCurrentUser(): Promise<User> {
   } else {
     localStorage.removeItem("profileImageUrl")
   }
+  if (user.score !== undefined) {
+    localStorage.setItem("userScore", String(user.score))
+  } else {
+    localStorage.removeItem("userScore")
+  }
+  if (user.title) {
+    localStorage.setItem("userTitle", user.title)
+  } else {
+    localStorage.removeItem("userTitle")
+  }
 
   return user
+}
+
+export async function getTitleManagement(): Promise<UserTitleManagement> {
+  const user = await getCurrentUser().catch(() => localUser())
+  return buildTitleManagement(user)
 }
 
 export async function updateNickname(userName: string): Promise<User> {
