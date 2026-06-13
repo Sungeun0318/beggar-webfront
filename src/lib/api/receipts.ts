@@ -1,16 +1,22 @@
 import { receipts } from '../../mocks'
-import type { Receipt, ReceiptHistory } from '../../types'
+import type { Receipt, ReceiptHistory, SplitGroup } from '../../types'
 import { client } from './client'
 import { MOCK } from './mockMode'
 
 type ReceiptRequest = {
-  storeName: string
+  storeName?: string
+  title?: string
   amount: number
+  totalAmount?: number
   receiptType: 'COMBINED' | 'SPLIT'
   inputMethod: 'CAMERA' | 'GALLERY' | 'MANUAL'
   image?: string
   imageUrl?: string
   uploaderUserNo?: number
+  splitGroupId?: number
+  address?: string
+  centerLat?: number
+  centerLng?: number
 }
 
 type ApiResponse<T> = {
@@ -109,6 +115,42 @@ export async function getRoomReceipts(roomNo: number): Promise<Receipt[]> {
 
   // 실제 경로: GET /rooms/{no}/receipts
   return client.getList<Receipt>(`/rooms/${roomNo}/receipts`)
+}
+
+export async function createSplitGroup(
+  roomNo: number,
+  request: {
+    storeName: string
+    address: string
+    centerLat?: number
+    centerLng?: number
+  },
+): Promise<SplitGroup> {
+  return client.post<SplitGroup>(`/rooms/${roomNo}/receipts/split-groups`, request)
+}
+
+export async function getSplitGroups(
+  roomNo: number,
+  status?: 'OPEN' | 'CLOSED',
+): Promise<SplitGroup[]> {
+  return client.getList<SplitGroup>(
+    `/rooms/${roomNo}/receipts/split-groups`,
+    status ? { status } : undefined,
+  )
+}
+
+export async function getSplitGroup(
+  roomNo: number,
+  groupId: number,
+): Promise<SplitGroup> {
+  return client.get<SplitGroup>(`/rooms/${roomNo}/receipts/split-groups/${groupId}`)
+}
+
+export async function closeSplitGroup(
+  roomNo: number,
+  groupId: number,
+): Promise<SplitGroup> {
+  return client.post<SplitGroup>(`/rooms/${roomNo}/receipts/split-groups/${groupId}/close`)
 }
 
 export async function getMyReceipts(): Promise<ReceiptHistory> {

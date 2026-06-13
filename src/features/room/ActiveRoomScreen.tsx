@@ -21,12 +21,12 @@ import { SummaryRow } from '../../components/SummaryRow'
 import { getBudgetResult } from '../../lib/api/budget'
 import { getRecommendation } from '../../lib/api/recommendation'
 import { getRoom, closeRoom } from '../../lib/api/rooms'
-import { getRoomReceipts } from '../../lib/api/receipts'
+import { getRoomReceipts, getSplitGroups } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { BudgetResult, RecommendedPlace, Room, Receipt } from '../../types'
+import type { BudgetResult, RecommendedPlace, Room, Receipt, SplitGroup } from '../../types'
 
 const fallbackTags = ['한식', '양식', '일식', '중식', '기타 요식업']
 
@@ -81,6 +81,7 @@ export function ActiveRoomScreen() {
   const [room, setRoom] = useState<Room | null>(null)
   const [budget, setBudget] = useState<BudgetResult | null>(null)
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
+  const [splitGroups, setSplitGroups] = useState<SplitGroup[]>([])
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
@@ -94,14 +95,16 @@ export function ActiveRoomScreen() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [roomData, budgetData, receiptData] = await Promise.all([
+        const [roomData, budgetData, receiptData, splitGroupData] = await Promise.all([
           getRoom(roomNo),
           getBudgetResult(roomNo).catch(() => null), // 예산이 아직 없을 수 있음
           getRoomReceipts(roomNo).catch(() => []),
+          getSplitGroups(roomNo).catch(() => []),
         ])
         setRoom(roomData)
         setBudget(budgetData)
         setReceiptList(receiptData)
+        setSplitGroups(splitGroupData)
         setSelectedTag(roomData.tags[0] || fallbackTags[0])
       } catch (error) {
         console.error('Failed to fetch room data:', error)
@@ -174,6 +177,14 @@ export function ActiveRoomScreen() {
   const remaining = total - spent
   const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
   const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
+  const openSplitGroups = splitGroups.filter(group => group.status === 'OPEN')
+  const groupedReceiptIds = new Set(
+    splitGroups.flatMap(group => group.items.map(item => item.receiptId)),
+  )
+  const ungroupedReceipts = receiptList.filter(receipt => {
+    const receiptId = receipt.receiptId || receipt.id || receipt.no
+    return !receiptId || !groupedReceiptIds.has(receiptId)
+  })
 
   const userNo = Number(localStorage.getItem('userNo'))
   const isOwner = userNo === displayRoom.ownerNo
@@ -328,8 +339,53 @@ export function ActiveRoomScreen() {
           )}
           <div className="h-3.5" />
           <div className="space-y-3">
-            {receiptList.length > 0 ? (
-              receiptList.map((receipt, index) => {
+            {openSplitGroups.map((group) => (
+              <button
+                key={group.splitGroupId}
+                type="button"
+                onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
+                className="flex w-full items-center justify-between rounded-card border border-accent bg-white p-4 text-left"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Scissors size={18} color={colors.accent} />
+                    <p className="truncate text-[15px] font-black text-text">
+                      분할 진행 중 · {group.storeName}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-sub">
+                    {group.receiptCount}장 · {group.contributorCount}명
+                  </p>
+                </div>
+                <span className="shrink-0 text-[15px] font-black text-accent">
+                  {money(group.totalAmount)}원
+                </span>
+              </button>
+            ))}
+
+            {splitGroups
+              .filter(group => group.status !== 'OPEN')
+              .map((group) => (
+                <button
+                  key={group.splitGroupId}
+                  type="button"
+                  onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
+                  className="flex w-full items-center justify-between rounded-card border border-border bg-white p-4 text-left"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-black text-text">[분할] {group.storeName}</p>
+                    <p className="mt-1 text-xs font-bold text-sub">
+                      마감 · {group.receiptCount}장 · {group.contributorCount}명
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[15px] font-black text-text">
+                    {money(group.totalAmount)}원
+                  </span>
+                </button>
+              ))}
+
+            {ungroupedReceipts.length > 0 ? (
+              ungroupedReceipts.map((receipt, index) => {
                 const prefix = receipt.receiptType === 'COMBINED' ? '[통합] ' : receipt.receiptType === 'SPLIT' ? '[분할] ' : ''
                 const title = (receipt.title || (receipt as any).storeName || '이름 없는 지출')
                 
@@ -345,7 +401,7 @@ export function ActiveRoomScreen() {
                   </div>
                 )
               })
-            ) : (
+            ) : splitGroups.length === 0 ? (
               <div 
                 className="flex h-[96px] w-full flex-col items-center justify-center rounded-card border border-border bg-white text-sub"
                 onClick={() => navigate(`/receipts/register?roomNo=${roomNo}`)}
@@ -353,7 +409,7 @@ export function ActiveRoomScreen() {
                 <p className="text-sm font-bold">등록된 영수증이 없어요.</p>
                 <p className="mt-1 text-[11px] font-semibold">첫 영수증을 등록해보세요!</p>
               </div>
-            )}
+            ) : null}
           </div>
           <div className="h-6" />
           <section
