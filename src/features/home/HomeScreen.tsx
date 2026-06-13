@@ -6,7 +6,7 @@ import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { RoomHomeCard } from '../../components/RoomHomeCard'
-import { findMyRooms } from '../../lib/api/rooms'
+import { deleteRoom, findMyRooms } from '../../lib/api/rooms'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Room } from '../../types'
@@ -29,6 +29,20 @@ export function HomeScreen() {
     }
     loadRooms()
   }, [])
+
+  const handleDeleteRoom = async (roomNo: number) => {
+    if (!window.confirm('목록에서 삭제하시겠습니까?\n(내 예산 기록은 유지됩니다)')) {
+      return
+    }
+
+    try {
+      await deleteRoom(roomNo)
+      setRooms((prev) => prev.filter((r) => r.no !== roomNo))
+    } catch (error) {
+      console.error('Failed to delete room:', error)
+      alert('방 삭제에 실패했습니다. 다시 시도해 주세요.')
+    }
+  }
 
   return (
     <PhoneFrame>
@@ -66,6 +80,7 @@ export function HomeScreen() {
                   memberCount={room.memberCount}
                   status={room.status || '진행 중'}
                   onTap={() => navigate(`/room/${room.no}`)}
+                  onDelete={() => handleDeleteRoom(room.no)}
                 />
               ))}
             </div>
