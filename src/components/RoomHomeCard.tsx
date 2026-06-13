@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { radii } from '../theme/tokens'
 import { money } from '../lib/format'
 import { softBox } from './ui/softBox'
@@ -10,6 +11,7 @@ type RoomHomeCardProps = {
   memberCount: number
   status: string
   onTap: () => void
+  onDelete?: () => void
 }
 
 export function RoomHomeCard({
@@ -20,14 +22,16 @@ export function RoomHomeCard({
   memberCount,
   status,
   onTap,
+  onDelete,
 }: RoomHomeCardProps) {
   const ratio = budget > 0 ? Math.min(Math.max(spent / budget, 0), 1) : 0
+  const isEnded = status === 'ENDED'
 
   return (
     <button
       type="button"
       onClick={onTap}
-      className="flex h-[158px] w-full flex-col p-[18px] text-left"
+      className="relative flex h-[158px] w-full flex-col p-[18px] text-left"
       style={softBox({ radius: radii.card, shadow: true })}
     >
       <div className="flex items-center">
@@ -38,6 +42,18 @@ export function RoomHomeCard({
           {title}
         </h3>
         <div className="flex-1" />
+        {isEnded && onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-muted text-sub hover:bg-muted/80"
+          >
+            <X size={14} />
+          </button>
+        )}
         <span className="rounded-chip bg-accentBg px-2.5 py-[5px] text-[11px] font-extrabold text-accent">
           {status}
         </span>
