@@ -1,4 +1,4 @@
-import { ChevronDown, ReceiptText, Loader2, X, MapPin } from 'lucide-react'
+import { ReceiptText, Loader2, X, MapPin } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -92,7 +92,7 @@ export function ReceiptsScreen() {
         <AppHeaderBrand
           title="지출 내역"
           onBack={() => navigate(-1)}
-          showNotification
+          showNotification={false}
         />
         <section className="px-pageH pt-2 h-[calc(100%-60px)] overflow-y-auto">
           <div className="flex items-center">
@@ -103,8 +103,6 @@ export function ReceiptsScreen() {
               모든 지출 내역
             </h1>
             <div className="flex-1" />
-            <span className="text-[13px] font-semibold text-sub">최신순</span>
-            <ChevronDown aria-hidden="true" size={16} color={colors.sub} />
           </div>
           <div className="h-5" />
           <div
