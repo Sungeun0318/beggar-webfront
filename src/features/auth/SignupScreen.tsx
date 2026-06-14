@@ -1,4 +1,12 @@
-import { Cake, Lock, Mail, User, Users, Verified } from 'lucide-react'
+import {
+  AtSign,
+  BadgeCheck,
+  CalendarDays,
+  KeyRound,
+  ShieldCheck,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -15,16 +23,8 @@ type SignupFieldProps = {
   onChange: (value: string) => void
   placeholder: string
   type?: 'email' | 'password' | 'text'
-  Icon: typeof User
+  Icon: LucideIcon
 }
-
-const ageRanges = [
-  { label: '10대', value: '10~19' },
-  { label: '20대', value: '20~29' },
-  { label: '30대', value: '30~39' },
-  { label: '40대', value: '40~49' },
-  { label: '50대 이상', value: '50~' },
-]
 
 function fieldShellStyle() {
   return {
@@ -42,7 +42,15 @@ function SignupField({
 }: SignupFieldProps) {
   return (
     <label className="flex h-14 items-center px-4" style={fieldShellStyle()}>
-      <Icon aria-hidden="true" size={20} color={colors.placeholder} />
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+        style={{
+          backgroundColor: colors.accentBg,
+          borderColor: colors.border,
+        }}
+      >
+        <Icon aria-hidden="true" size={18} color={colors.accent} strokeWidth={2.4} />
+      </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -64,12 +72,20 @@ function SignupSelect({
   value: string
   onChange: (value: string) => void
   placeholder: string
-  Icon: typeof User
+  Icon: LucideIcon
   children: React.ReactNode
 }) {
   return (
     <label className="flex h-14 items-center px-4" style={fieldShellStyle()}>
-      <Icon aria-hidden="true" size={20} color={colors.placeholder} />
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+        style={{
+          backgroundColor: colors.accentBg,
+          borderColor: colors.border,
+        }}
+      >
+        <Icon aria-hidden="true" size={18} color={colors.accent} strokeWidth={2.4} />
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -89,15 +105,18 @@ export function SignupScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [gender, setGender] = useState('')
-  const [ageRange, setAgeRange] = useState('')
+  const [age, setAge] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const ageNumber = Number(age)
 
   const canSubmit =
     nickname.trim().length > 0 &&
     email.trim().length > 0 &&
     password.trim().length > 0 &&
-    ageRange.length > 0
+    Number.isInteger(ageNumber) &&
+    ageNumber >= 0 &&
+    ageNumber <= 120
 
   const submitSignup = async () => {
     if (!canSubmit || isSubmitting) return
@@ -109,7 +128,7 @@ export function SignupScreen() {
         nickname: nickname.trim(),
         email: email.trim(),
         password,
-        ageRange,
+        age: ageNumber,
         gender: gender && gender !== 'none' ? Number(gender) : undefined,
       })
       navigate('/login')
@@ -134,10 +153,10 @@ export function SignupScreen() {
               className="text-2xl font-black text-text"
               style={{ letterSpacing: -0.7 }}
             >
-              처음 오셨나요?
+              거지방 시작하기
             </h1>
             <p className="mt-2 text-sm font-semibold leading-[1.5] text-sub">
-              연령대는 추천 품질 개선에만 사용돼.
+              방에서 사용할 기본 정보를 입력해 주세요.
             </p>
             <div className="h-[30px]" />
             <SectionTitle text="기본 정보" />
@@ -146,7 +165,7 @@ export function SignupScreen() {
               value={nickname}
               onChange={setNickname}
               placeholder="닉네임"
-              Icon={User}
+              Icon={Sparkles}
             />
             <div className="h-3" />
             <SignupField
@@ -154,7 +173,7 @@ export function SignupScreen() {
               onChange={setEmail}
               placeholder="이메일"
               type="email"
-              Icon={Mail}
+              Icon={AtSign}
             />
             <div className="h-3" />
             <SignupField
@@ -162,37 +181,32 @@ export function SignupScreen() {
               onChange={setPassword}
               placeholder="비밀번호"
               type="password"
-              Icon={Lock}
+              Icon={KeyRound}
             />
             <div className="h-3" />
             <SignupSelect
               value={gender}
               onChange={setGender}
               placeholder="성별"
-              Icon={Users}
+              Icon={BadgeCheck}
             >
               <option value="none">선택 안 함</option>
-              <option value="0">남성</option>
-              <option value="1">여성</option>
+              <option value="1">남성</option>
+              <option value="2">여성</option>
             </SignupSelect>
             <div className="h-3" />
-            <SignupSelect
-              value={ageRange}
-              onChange={setAgeRange}
-              placeholder="연령대"
-              Icon={Cake}
-            >
-              {ageRanges.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </SignupSelect>
+            <SignupField
+              value={age}
+              onChange={(value) => setAge(value.replace(/\D/g, '').slice(0, 3))}
+              placeholder="나이"
+              type="text"
+              Icon={CalendarDays}
+            />
             <div className="h-6" />
             <InfoCard
-              Icon={Verified}
-              title="예산 정보는 익명으로 보호돼요"
-              body={'성별과 연령대는 추천 품질 개선에만 사용하고\n개인 예산은 다른 사람에게 공개하지 않아요.'}
+              Icon={ShieldCheck}
+              title="모임에서 사용할 기본 정보예요"
+              body={'닉네임과 기본 정보는 방 활동에 사용하고\n개인 예산은 다른 사람에게 공개하지 않아요.'}
             />
             {errorMessage && (
               <p className="mt-4 text-[12px] font-semibold leading-[1.4] text-danger">
