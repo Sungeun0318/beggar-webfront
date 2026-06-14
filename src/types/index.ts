@@ -37,7 +37,7 @@ export type Room = {
   tags: string[]
   memberCount: number
   maxMemberCount: number
-  status?: string
+  status?: 'DRAFT' | 'INVITING' | 'ACTIVE' | 'ENDED' | 'BUDGET_INPUT' | string
   budget?: number
   spent?: number
 }
@@ -92,12 +92,17 @@ export type Receipt = {
   storeName?: string
   totalAmount?: number
   amount: number
+  receiptIssuedAt?: string
   address?: string
   createdAt?: string
   splits?: {
     roomMemberId?: number
     userName?: string
     amount?: number
+  }[]
+  images?: {
+    url: string
+    uploaderName: string
   }[]
 }
 

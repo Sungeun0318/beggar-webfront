@@ -3,7 +3,7 @@ import type { Receipt, ReceiptHistory, SplitGroup } from '../../types'
 import { client } from './client'
 import { MOCK } from './mockMode'
 
-type ReceiptRequest = {
+export type ReceiptRequest = {
   storeName?: string
   title?: string
   amount: number
@@ -17,12 +17,42 @@ type ReceiptRequest = {
   address?: string
   centerLat?: number
   centerLng?: number
+  receiptIssuedAt?: string
 }
 
 type ApiResponse<T> = {
   success: boolean
   data: T
   message?: string
+}
+
+export type ReceiptDuplicateCheckRequest = {
+  receiptType: 'COMBINED' | 'SPLIT'
+  storeName?: string
+  address?: string
+  amount: number
+  splitGroupId?: number
+  receiptIssuedAt?: string
+  excludeReceiptId?: number
+}
+
+export type ReceiptDuplicateCandidate = {
+  receiptId: number
+  roomNo: number
+  uploaderUserNo: number
+  receiptType: string
+  inputMethod: string
+  storeName?: string
+  address?: string
+  amount: number
+  splitGroupId?: number | null
+  receiptIssuedAt?: string | null
+  createdAt: string
+}
+
+export type ReceiptDuplicateCheckResponse = {
+  hasDuplicate: boolean
+  candidates: ReceiptDuplicateCandidate[]
 }
 
 export async function createReceipt(
@@ -33,6 +63,44 @@ export async function createReceipt(
     ...request,
     uploaderUserNo: request.uploaderUserNo ?? 1,
   })
+}
+
+export async function checkReceiptDuplicate(
+  roomNo: number,
+  request: ReceiptDuplicateCheckRequest,
+): Promise<ReceiptDuplicateCheckResponse> {
+  if (MOCK.receipts) {
+    const candidates = receipts
+      .filter(receipt => {
+        const sameStore = (receipt.storeName || receipt.title || '').trim() === (request.storeName || '').trim()
+        const sameAmount = receipt.amount === request.amount
+        return sameStore && sameAmount
+      })
+      .slice(0, 5)
+      .map(receipt => ({
+        receiptId: receipt.receiptId || receipt.id || receipt.no || 0,
+        roomNo,
+        uploaderUserNo: 0,
+        receiptType: receipt.receiptType || 'COMBINED',
+        inputMethod: 'MANUAL',
+        storeName: receipt.storeName || receipt.title,
+        address: receipt.address,
+        amount: receipt.amount,
+        splitGroupId: receipt.splitGroupId ?? null,
+        receiptIssuedAt: receipt.receiptIssuedAt ?? null,
+        createdAt: receipt.createdAt || new Date().toISOString(),
+      }))
+
+    return {
+      hasDuplicate: candidates.length > 0,
+      candidates,
+    }
+  }
+
+  return client.post<ReceiptDuplicateCheckResponse>(
+    `/rooms/${roomNo}/receipts/duplicate-check`,
+    request,
+  )
 }
 
 export async function updateReceipt(

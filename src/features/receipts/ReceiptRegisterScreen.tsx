@@ -6,7 +6,16 @@ import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { SectionTitle } from '../../components/SectionTitle'
 import { searchLocations } from '../../lib/api/locations'
-import { createReceipt, getReceiptDetail, uploadReceiptImage, updateReceipt, getRoomReceipts, deleteReceipt } from '../../lib/api/receipts'
+import {
+  checkReceiptDuplicate,
+  createReceipt,
+  deleteReceipt,
+  getReceiptDetail,
+  updateReceipt,
+  uploadReceiptImage,
+  type ReceiptDuplicateCheckResponse,
+  type ReceiptRequest,
+} from '../../lib/api/receipts'
 import { getRoom } from '../../lib/api/rooms'
 import { colors, radii, spacing, gradients } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
@@ -42,6 +51,7 @@ export function ReceiptRegisterScreen() {
 
   const [storeName, setStoreName] = useState('')
   const [amount, setAmount] = useState('')
+  const [receiptIssuedAt, setReceiptIssuedAt] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // OCR 로딩 상태
@@ -54,8 +64,11 @@ export function ReceiptRegisterScreen() {
   const [selectedStore, setSelectedStore] = useState<LocationSearchResult | null>(null)
   const [showResults, setShowResults] = useState(false)
 
-  // 커스텀 알림 모달 상태 (중복 등록 방지용)
-  const [duplicateModalMessage, setDuplicateModalMessage] = useState<string | null>(null)
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<ReceiptDuplicateCheckResponse | null>(null)
+  const [pendingReceiptSubmit, setPendingReceiptSubmit] = useState<{
+    payload: ReceiptRequest
+    receiptId: number | null
+  } | null>(null)
 
   useEffect(() => {
     getRoom(roomNo).then((data) => {
@@ -133,6 +146,7 @@ export function ReceiptRegisterScreen() {
           setStoreName(hasStore ? detail.storeName! : '')
           const finalAmount = detail.totalAmount || (detail as any).amount || ''
           setAmount(finalAmount ? String(finalAmount) : '')
+          setReceiptIssuedAt((detail as any).receiptIssuedAt || '')
           
           setOcrLoading(false)
         }
@@ -193,33 +207,7 @@ export function ReceiptRegisterScreen() {
     try {
       const numericAmount = parseInt(amount.replace(/\D/g, ''), 10)
 
-      // 정확한 중복 체크를 위해 최신 영수증 목록 다시 가져오기
-      const latestReceipts = await getRoomReceipts(roomNo)
-      
-      const isDuplicate = latestReceipts.some(r => {
-        // 본인 영수증(수정 중)은 제외
-        const rId = r.id || r.receiptId || r.no
-        if (currentReceiptId && rId === currentReceiptId) return false
-        
-        const rName = (r.storeName || r.title || '').trim()
-        const targetName = selectedStore.name.trim()
-        
-        return rName === targetName && r.amount === numericAmount
-      })
-
-      if (isDuplicate) {
-        setIsSubmitting(false)
-        // 사진 업로드로 임시 생성된 영수증이 있다면 서버에서 삭제
-        if (currentReceiptId) {
-          deleteReceipt(roomNo, currentReceiptId).catch(err => 
-            console.error('중복 영수증 임시 데이터 삭제 실패:', err)
-          )
-        }
-        setDuplicateModalMessage('이미 같은 가게와 금액으로 등록된 영수증이 있습니다.')
-        return
-      }
-
-      const payload = {
+      const payload: ReceiptRequest = {
         storeName: selectedStore.name,
         title: selectedStore.name,
         amount: numericAmount,
@@ -228,16 +216,29 @@ export function ReceiptRegisterScreen() {
         address: selectedStore.address,
         centerLat: selectedStore.lat,
         centerLng: selectedStore.lng,
+        receiptIssuedAt: receiptIssuedAt || undefined,
       }
 
-      if (currentReceiptId) {
-        await updateReceipt(roomNo, currentReceiptId, payload)
-      } else {
-        await createReceipt(roomNo, payload)
+      const duplicateResult = await checkReceiptDuplicate(roomNo, {
+        receiptType: 'COMBINED',
+        storeName: selectedStore.name,
+        address: selectedStore.address,
+        amount: numericAmount,
+        receiptIssuedAt: receiptIssuedAt || undefined,
+        excludeReceiptId: currentReceiptId ?? undefined,
+      })
+
+      if (duplicateResult.hasDuplicate) {
+        setPendingReceiptSubmit({
+          payload,
+          receiptId: currentReceiptId,
+        })
+        setDuplicateCheckResult(duplicateResult)
+        setIsSubmitting(false)
+        return
       }
-      
-      isCommittedRef.current = true // 등록 성공 표시
-      complete()
+
+      await commitReceipt(payload, currentReceiptId)
     } catch (error: any) {
       console.error('영수증 등록 실패:', error)
       alert('영수증 등록에 실패했습니다.')
@@ -245,14 +246,36 @@ export function ReceiptRegisterScreen() {
     }
   }
 
-  const handleCloseDuplicateModal = () => {
-    setDuplicateModalMessage(null)
-    // 모달을 닫을 때 입력 정보 및 현재 작업 중인 ID 초기화
-    setStoreName('')
-    setAmount('')
-    setSelectedStore(null)
-    setCurrentReceiptId(null)
-    currentReceiptIdRef.current = null // ref도 함께 초기화
+  const commitReceipt = async (payload: ReceiptRequest, receiptId: number | null) => {
+    if (receiptId) {
+      await updateReceipt(roomNo, receiptId, payload)
+    } else {
+      await createReceipt(roomNo, payload)
+    }
+
+    isCommittedRef.current = true
+    complete()
+  }
+
+  const cancelDuplicateSubmit = () => {
+    setDuplicateCheckResult(null)
+    setPendingReceiptSubmit(null)
+  }
+
+  const continueDuplicateSubmit = async () => {
+    if (!pendingReceiptSubmit) return
+
+    setIsSubmitting(true)
+    try {
+      await commitReceipt(pendingReceiptSubmit.payload, pendingReceiptSubmit.receiptId)
+    } catch (error) {
+      console.error('중복 경고 후 영수증 등록 실패:', error)
+      alert('영수증 등록에 실패했습니다.')
+      setIsSubmitting(false)
+    } finally {
+      setDuplicateCheckResult(null)
+      setPendingReceiptSubmit(null)
+    }
   }
 
   const handleSelectStore = (store: LocationSearchResult) => {
@@ -424,24 +447,46 @@ export function ReceiptRegisterScreen() {
           </div>
         )}
 
-        {/* 중복 알림 커스텀 모달 */}
-        {duplicateModalMessage && (
+        {/* 중복 확인 모달 */}
+        {duplicateCheckResult && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
             <div className="w-full max-w-[320px] bg-white rounded-[24px] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
               <div className="flex flex-col items-center text-center">
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
                   <AlertCircle size={30} className="text-red-500" />
                 </div>
-                <h3 className="mb-2 text-lg font-black text-text">알림</h3>
-                <p className="mb-6 text-[15px] font-semibold leading-relaxed text-sub whitespace-pre-wrap">
-                  {duplicateModalMessage}
+                <h3 className="mb-2 text-lg font-black text-text">비슷한 영수증이 있어요</h3>
+                <p className="mb-3 text-[15px] font-semibold leading-relaxed text-sub whitespace-pre-wrap">
+                  같은 가게 / 같은 금액 / 비슷한 시간의 영수증입니다.
                 </p>
-                <button
-                  onClick={handleCloseDuplicateModal}
-                  className="h-14 w-full rounded-2xl bg-text text-base font-bold text-white active:opacity-90"
-                >
-                  확인
-                </button>
+                <div className="mb-6 w-full rounded-2xl bg-bg p-3 text-left">
+                  {duplicateCheckResult.candidates.slice(0, 2).map((candidate) => (
+                    <div key={candidate.receiptId} className="border-b border-border py-2 last:border-0">
+                      <p className="text-sm font-bold text-text">{candidate.storeName || '-'}</p>
+                      <p className="mt-1 text-xs font-semibold text-sub">
+                        {candidate.amount.toLocaleString()}원 · {(candidate.receiptIssuedAt || candidate.createdAt).slice(0, 16).replace('T', ' ')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid w-full grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelDuplicateSubmit}
+                    disabled={isSubmitting}
+                    className="h-14 rounded-2xl border border-border bg-white text-base font-bold text-sub active:opacity-90 disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={continueDuplicateSubmit}
+                    disabled={isSubmitting}
+                    className="h-14 rounded-2xl bg-text text-base font-bold text-white active:opacity-90 disabled:opacity-50"
+                  >
+                    {isSubmitting ? '등록 중' : '그래도 등록'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

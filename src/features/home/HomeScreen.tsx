@@ -6,24 +6,35 @@ import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { RoomHomeCard } from '../../components/RoomHomeCard'
-import { deleteRoom, searchRooms } from '../../lib/api/rooms'
+import { deleteRoom, findMyRooms, searchRooms } from '../../lib/api/rooms'
+import { getCurrentUser } from '../../lib/api/auth'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { Room } from '../../types'
+import type { Room, User } from '../../types'
+import { ApiError } from '../../lib/api/client'
 
 export function HomeScreen() {
   const navigate = useNavigate()
   const [rooms, setRooms] = useState<Room[]>([])
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearching, setIsSearching] = useState(false)
 
-  // 검색 로직 (Debounce 적용 및 초기 로드 통합)
+  // 사용자 정보 로드
+  useEffect(() => {
+    getCurrentUser().then(setUser).catch(console.error)
+  }, [])
+
+  // 데이터 로드 및 검색 로직
   useEffect(() => {
     const performSearch = async () => {
       setIsSearching(true)
       try {
-        const data = await searchRooms(searchTerm)
+        // 검색어가 없으면 '내 방 목록'을, 있으면 '검색 결과'를 가져옵니다.
+        const data = searchTerm.trim() === '' 
+          ? await findMyRooms() 
+          : await searchRooms(searchTerm)
         setRooms(data)
       } catch (error) {
         console.error('방 목록 로드 실패:', error)
@@ -33,19 +44,23 @@ export function HomeScreen() {
       }
     }
 
-    // 초기 로드거나 검색어가 비어있으면 즉시 실행, 아니면 데바운스 적용
-    if (searchTerm === '' && isLoading) {
+    // 처음 로드할 때는 즉시 실행
+    if (isLoading && searchTerm === '') {
       performSearch()
       return
     }
 
-    const delayDebounceFn = setTimeout(performSearch, searchTerm === '' ? 0 : 500)
+    // 검색어 입력 시에는 데바운스 적용
+    const delayDebounceFn = setTimeout(
+      performSearch, 
+      searchTerm.trim() === '' ? 0 : 500
+    )
 
     return () => clearTimeout(delayDebounceFn)
-  }, [searchTerm, isLoading])
+  }, [searchTerm]) // isLoading을 의존성에서 제거하여 중복 호출 방지
 
   const handleDeleteRoom = async (roomNo: number) => {
-    if (!window.confirm('목록에서 삭제하시겠습니까?\n(내 예산 기록은 유지됩니다)')) {
+    if (!window.confirm('방을 목록에서 삭제하시겠습니까?')) {
       return
     }
 
@@ -54,7 +69,11 @@ export function HomeScreen() {
       setRooms((prev) => prev.filter((r) => r.no !== roomNo))
     } catch (error) {
       console.error('Failed to delete room:', error)
-      alert('방 삭제에 실패했습니다. 다시 시도해 주세요.')
+      if (error instanceof ApiError) {
+        alert(error.message)
+      } else {
+        alert('방 삭제에 실패했습니다. 다시 시도해 주세요.')
+      }
     }
   }
 
@@ -113,8 +132,20 @@ export function HomeScreen() {
                   budget={room.budget || 0}
                   spent={room.spent || 0}
                   memberCount={room.memberCount}
-                  status={room.status || '진행 중'}
-                  onTap={() => navigate(`/room/${room.no}`)}
+                  status={room.status || 'ACTIVE'}
+                  isOwner={user?.no === room.ownerNo}
+                  onTap={() => {
+                    if (room.status === 'INVITING' || room.status === 'DRAFT') {
+                      navigate(`/room/invite/${room.no}`)
+                    } else if (room.status === 'BUDGET_INPUT') {
+                      navigate(`/budget/input/${room.no}`)
+                    } else if (room.status === 'ACTIVE') {
+                      navigate(`/room/${room.no}`)
+                    } else {
+                      // ENDED 등의 상태는 기존대로 상세 페이지로 이동
+                      navigate(`/room/${room.no}`)
+                    }
+                  }}
                   onDelete={() => handleDeleteRoom(room.no)}
                 />
               ))}
@@ -133,4 +164,3 @@ export function HomeScreen() {
     </PhoneFrame>
   )
 }
-
