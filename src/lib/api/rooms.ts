@@ -47,7 +47,7 @@ export async function findMyRooms(): Promise<Room[]> {
     maxMemberCount: item.maxMemberCount || 4,
     memberCount: item.memberCount || item.mvemberCount || 1,
     tags: item.tags || [],
-    status: item.roomStatus || item.status || '진행 중',
+    status: item.roomStatus || item.status || 'ACTIVE',
     // 백엔드 응답에 포함될 수 있는 추가 필드들
     budget: item.totalBudget || item.budget || 0,
     spent: item.spentAmount || item.spent || 0,
@@ -75,7 +75,7 @@ export async function searchRooms(keyword: string): Promise<Room[]> {
     maxMemberCount: item.maxMemberCount || 4,
     memberCount: item.memberCount || item.mvemberCount || 1,
     tags: item.tags || [],
-    status: item.roomStatus || item.status || '진행 중',
+    status: item.roomStatus || item.status || 'ACTIVE',
     budget: item.totalBudget || item.budget || 0,
     spent: item.spentAmount || item.spent || 0,
   })) as Room[]
@@ -137,7 +137,7 @@ export async function getRoom(no: number): Promise<Room> {
       maxMemberCount: data.maxMemberCount || 4,
       memberCount: data.memberCount || data.mvemberCount || 1,
       tags: data.tags || [],
-      status: data.roomStatus || data.status || '진행 중',
+      status: data.roomStatus || data.status || 'ACTIVE',
     } as any
 
   } catch (error) {

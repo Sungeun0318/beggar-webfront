@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { radii } from '../theme/tokens'
+import { colors, radii } from '../theme/tokens'
 import { money } from '../lib/format'
 import { softBox } from './ui/softBox'
 
@@ -10,6 +10,7 @@ type RoomHomeCardProps = {
   spent: number
   memberCount: number
   status: string
+  isOwner?: boolean
   onTap: () => void
   onDelete?: () => void
 }
@@ -21,11 +22,39 @@ export function RoomHomeCard({
   spent,
   memberCount,
   status,
+  isOwner = false,
   onTap,
   onDelete,
 }: RoomHomeCardProps) {
   const ratio = budget > 0 ? Math.min(Math.max(spent / budget, 0), 1) : 0
+  const isDraft = status === 'DRAFT'
+  const isInviting = status === 'INVITING'
   const isEnded = status === 'ENDED'
+  const isActive = status === 'ACTIVE'
+  
+  // 방장(Owner): ACTIVE(진행 중)가 아니면 항상 삭제 가능
+  // 일반 멤버(Member): ENDED(종료됨)일 때만 삭제 버튼 노출
+  const canDelete = onDelete && (isOwner ? !isActive : isEnded)
+
+  const getStatusLabel = () => {
+    switch (status) {
+      case 'DRAFT': return '설정 미완료'
+      case 'INVITING': return '초대 중'
+      case 'BUDGET_INPUT': return '예산 입력 중'
+      case 'ACTIVE': return '진행 중'
+      case 'ENDED': return '종료됨'
+      default: return status || '알 수 없음'
+    }
+  }
+
+  const getStatusColor = () => {
+    if (isDraft || status === 'BUDGET_INPUT') return { bg: '#FFF0F0', text: '#FF4D4D' } // 붉은 계열 (주의/미완료)
+    if (isInviting) return { bg: '#E6F7FF', text: '#1890FF' } // 파란 계열
+    if (isEnded) return { bg: '#F5F5F5', text: '#8C8C8C' } // 회색 계열
+    return { bg: colors.accentBg, text: colors.accent } // 기본 (ACTIVE 등)
+  }
+
+  const statusStyle = getStatusColor()
 
   return (
     <div
@@ -48,7 +77,7 @@ export function RoomHomeCard({
           {title}
         </h3>
         <div className="flex-1" />
-        {isEnded && onDelete && (
+        {canDelete && (
           <button
             type="button"
             onClick={(e) => {
@@ -60,8 +89,11 @@ export function RoomHomeCard({
             <X size={14} />
           </button>
         )}
-        <span className="rounded-chip bg-accentBg px-2.5 py-[5px] text-[11px] font-extrabold text-accent">
-          {status}
+        <span 
+          className="rounded-chip px-2.5 py-[5px] text-[11px] font-extrabold"
+          style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
+        >
+          {getStatusLabel()}
         </span>
       </div>
       <p className="mt-2 text-[13px] font-semibold text-sub">

@@ -1,6 +1,6 @@
 import { Edit3, Info, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 
 import { AppHeaderTitled } from "../../components/AppHeader"
 import { ParticipantTile } from "../../components/ParticipantTile"
@@ -30,8 +30,11 @@ function isBudgetDoneStatus(status?: string) {
 
 export function BudgetInputScreen() {
   const navigate = useNavigate()
-  const { roomNo } = useParams()
-  const targetRoomNo = Number(roomNo) || 1
+  const { roomNo: pathRoomNo } = useParams()
+  const [searchParams] = useSearchParams()
+  
+  // URL 파라미터(?roomNo=11) 또는 경로 파라미터(/:roomNo)에서 방 번호 읽기
+  const targetRoomNo = Number(searchParams.get("roomNo") || pathRoomNo) || 1
 
   const [room, setRoom] = useState<Room | null>(null)
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
@@ -178,87 +181,60 @@ export function BudgetInputScreen() {
   useEffect(() => {
     loadRoomState()
 
+    const subscriptions: { unsubscribe: () => void }[] = []
+
     wsClient.connect().then(() => {
-      const handleRoomEvent = async (event: any) => {
-        if (event.type === "MEMBERS_UPDATED") {
-          setRoomMembers(event.data)
-          setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
-          return
-        }
-
-        if (event.type === "BUDGET_SUBMITTED") {
-          const nextSubmittedCount = Number(event.data?.submittedCount) || 0
-          const nextMemberCount = Number(event.data?.memberCount) || 0
-          const submittedUserNo = Number(event.data?.userNo) || undefined
-
-          markMemberBudgetSubmitted(submittedUserNo)
-          setSubmittedCount(nextSubmittedCount)
-          window.setTimeout(() => {
-            getRoomMembers(targetRoomNo).then(setRoomMembers)
-          }, 500)
-
-          if (nextMemberCount > 0 && nextSubmittedCount >= nextMemberCount) {
-            await goToResultIfReady()
-          }
-          return
-        }
-
-        if (event.type === "BUDGET_CONFIRMED") {
-          goToResult()
-        }
-      }
-
-      // 백엔드는 모든 방 이벤트를 /topic/rooms/{roomNo} 단일 채널로 발행한다.
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}`, (message) => {
-        void handleRoomEvent(JSON.parse(message.body))
-      })
+      console.log('✅ WebSocket Connected in BudgetInput!')
 
       // 1. 멤버 목록 실시간 반영
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
-        const event = JSON.parse(message.body)
-        if (event.type === "MEMBERS_UPDATED") {
-          setRoomMembers(event.data)
-          setSubmittedCount(event.data.filter((m: any) => m.budgetSubmitted).length)
-        }
-      })
+      subscriptions.push(
+        wsClient.subscribe(`/topic/rooms/${targetRoomNo}/members`, (message) => {
+          const members = JSON.parse(message.body)
+          console.log('👥 멤버 리스트 갱신됨:', members)
+          setRoomMembers(members)
+          setSubmittedCount(members.filter((m: any) => m.budgetSubmitted).length)
+        })
+      )
 
       // 2. 예산 제출 상황 동기화 (budget 토픽)
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/budget`, (message) => {
-        const event = JSON.parse(message.body)
-        if (event.type === "BUDGET_SUBMITTED") {
-          const submittedUserNo = Number(event.data?.userNo) || undefined
-          markMemberBudgetSubmitted(submittedUserNo)
-          setSubmittedCount(event.data.submittedCount)
-          window.setTimeout(() => {
-            getRoomMembers(targetRoomNo).then(setRoomMembers)
-          }, 500)
-          if (event.data.memberCount > 0 && event.data.submittedCount >= event.data.memberCount) {
+      // 데이터 형식: { submittedCount: N, totalCount: M, userNo: X } (예상)
+      subscriptions.push(
+        wsClient.subscribe(`/topic/rooms/${targetRoomNo}/budget`, (message) => {
+          const data = JSON.parse(message.body)
+          console.log('💰 예산 제출 현황 업데이트:', data)
+          
+          if (data.userNo) {
+            markMemberBudgetSubmitted(Number(data.userNo))
+          }
+          
+          if (typeof data.submittedCount === 'number') {
+            setSubmittedCount(data.submittedCount)
+          }
+
+          // 모든 인원이 제출했는지 확인 (서버가 state 채널로 신호를 줄 수도 있지만 여기서도 체크)
+          if (data.submittedCount > 0 && data.submittedCount >= data.totalCount) {
             void goToResultIfReady()
           }
-        } else if (event.type === "BUDGET_CONFIRMED") {
-          // 예산 토픽으로 확정 이벤트가 오는 경우 대응
-          goToResult()
-        }
-      })
+        })
+      )
 
-      // 3. 예산 확정 및 방 상태 변경 이벤트 구동 (state 토픽)
-      wsClient.subscribe(`/topic/rooms/${targetRoomNo}/state`, (message) => {
-        const event = JSON.parse(message.body)
-        
-        // BUDGET_CONFIRMED 타입이거나 STATE_CHANGED를 통한 상태 변화 감지
-        const isConfirmed = event.type === "BUDGET_CONFIRMED"
-        const isCompletedState = 
-          event.type === "STATE_CHANGED" && 
-          (event.data === "BUDGET_COMPLETED" || event.data?.state === "COMPLETED")
-
-        if (isConfirmed || isCompletedState) {
-          goToResult()
-        }
-      })
+      // 3. 방 상태 변경(이동 알림) 채널 구독
+      subscriptions.push(
+        wsClient.subscribe(`/topic/rooms/${targetRoomNo}/state`, (message) => {
+          const targetUrl = message.body
+          console.log('🚀 방 상태 변경 감지! 이동 경로:', targetUrl)
+          
+          // 결과 화면으로 이동해야 하는 경우 (예: /budget/result?roomNo=...)
+          if (targetUrl && (targetUrl.includes('result') || targetUrl.includes('COMPLETED'))) {
+            goToResult()
+          }
+        })
+      )
     })
 
     return () => {
-      wsClient.disconnect()
+      console.log('🔌 Unsubscribing from WebSocket in BudgetInput...')
+      subscriptions.forEach(s => s.unsubscribe())
     }
   }, [targetRoomNo, navigate, goToResult, goToResultIfReady, markMemberBudgetSubmitted])
 
