@@ -16,6 +16,12 @@ type SignupRequest = {
   gender?: number
 }
 
+type KakaoLoginProfileRequest = {
+  email: string
+  gender: number
+  age: number
+}
+
 type LoginData = {
   accessToken: string
   refreshToken?: string
@@ -362,6 +368,7 @@ export async function uploadProfileImage(file: File): Promise<string> {
 export async function loginWithKakaoCode(
   code: string,
   redirectUri: string,
+  profile: KakaoLoginProfileRequest,
 ): Promise<User> {
   if (MOCK.auth) {
     return currentUser
@@ -370,6 +377,9 @@ export async function loginWithKakaoCode(
   const response = await client.post<ApiResponse<LoginData>>("/auth/kakao/code", {
     code,
     redirectUri,
+    email: profile.email,
+    gender: profile.gender,
+    age: profile.age,
   })
   
   console.log("Kakao Login Response:", response)
