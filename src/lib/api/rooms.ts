@@ -54,8 +54,31 @@ export async function findMyRooms(): Promise<Room[]> {
   })) as Room[]
 }
 
-export async function getMyRooms(): Promise<Room[]> {
-  return findMyRooms()
+/**
+ * 방 검색 API를 호출합니다.
+ * (백엔드: GET /rooms/search?keyword=...)
+ */
+export async function searchRooms(keyword: string): Promise<Room[]> {
+  if (MOCK.rooms) {
+    return [room].filter(r => r.name.includes(keyword) || r.location.includes(keyword))
+  }
+
+  const response = await client.get<ApiResponse<any[]>>(`/rooms/search?keyword=${encodeURIComponent(keyword)}`)
+  const data = response.data || []
+
+  return data.map((item: any) => ({
+    no: item.roomNo || item.no,
+    name: item.roomName || item.name || '이름 없는 거지방',
+    code: item.roomCode || item.code || '',
+    ownerNo: item.ownerUserNo || item.ownerNo || 0,
+    location: item.location || '',
+    maxMemberCount: item.maxMemberCount || 4,
+    memberCount: item.memberCount || item.mvemberCount || 1,
+    tags: item.tags || [],
+    status: item.roomStatus || item.status || '진행 중',
+    budget: item.totalBudget || item.budget || 0,
+    spent: item.spentAmount || item.spent || 0,
+  })) as Room[]
 }
 
 export async function closeRoom(no: number): Promise<void> {
