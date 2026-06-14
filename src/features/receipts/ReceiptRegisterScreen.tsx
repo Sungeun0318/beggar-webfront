@@ -164,8 +164,13 @@ export function ReceiptRegisterScreen() {
         image: imageUrl,
         imageUrl: imageUrl,
       }
+      let finalReceiptId: number
+      if (currentReceiptId) {
+        await deleteReceipt(roomNo, currentReceiptId)
+        setCurrentReceiptId(null)
+      }
       const receipt = await createReceipt(roomNo, receiptData)
-      const finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
+      finalReceiptId = (receipt as any).receiptId || receipt.id || receipt.no
       setCurrentReceiptId(finalReceiptId)
       pollOcrResult(roomNo, finalReceiptId)
 
