@@ -28,10 +28,16 @@ export function RoomHomeCard({
   const isEnded = status === 'ENDED'
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onTap}
-      className="relative flex h-[158px] w-full flex-col p-[18px] text-left"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onTap()
+        }
+      }}
+      className="relative flex h-[158px] w-full cursor-pointer flex-col p-[18px] text-left outline-none transition-opacity active:opacity-90"
       style={softBox({ radius: radii.card, shadow: true })}
     >
       <div className="flex items-center">
@@ -75,6 +81,6 @@ export function RoomHomeCard({
       <div className="h-2 overflow-hidden rounded-chip bg-muted">
         <div className="h-full bg-accent" style={{ width: `${ratio * 100}%` }} />
       </div>
-    </button>
+    </div>
   )
 }
