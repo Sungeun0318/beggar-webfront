@@ -129,8 +129,6 @@ export function HomeScreen() {
                   key={room.no}
                   title={room.name}
                   location={room.location}
-                  budget={room.budget || 0}
-                  spent={room.spent || 0}
                   memberCount={room.memberCount}
                   status={room.status || 'ACTIVE'}
                   isOwner={user?.no === room.ownerNo}
