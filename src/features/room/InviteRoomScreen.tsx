@@ -42,6 +42,7 @@ export function InviteRoomScreen() {
 
   useEffect(() => {
     console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', finalRoomNo)
+    let isMounted = true
 
     Promise.all([
       getRoom(finalRoomNo).catch((err) => {
@@ -54,6 +55,7 @@ export function InviteRoomScreen() {
       }),
     ])
       .then(([roomResponse, membersResponse]) => {
+        if (!isMounted) return
         console.log('📦 백엔드가 준 원본 방 데이터:', roomResponse)
 
         if (roomResponse) {
@@ -89,20 +91,27 @@ export function InviteRoomScreen() {
     const subscriptions: { unsubscribe: () => void }[] = []
 
     wsClient.connect(() => {
+      if (!isMounted) return
       console.log('✅ WebSocket Connected in InviteRoom!')
 
       // 1. 멤버 현황 채널 구독
       subscriptions.push(
         wsClient.subscribe(`/topic/rooms/${finalRoomNo}/members`, (msg) => {
-          const members = JSON.parse(msg.body)
-          console.log('👥 멤버 리스트 갱신됨:', members)
-          setRoomMembers(members)
+          if (!isMounted) return
+          try {
+            const members = JSON.parse(msg.body)
+            console.log('👥 멤버 리스트 갱신됨:', members)
+            setRoomMembers(members)
+          } catch (e) {
+            console.error('멤버 리스트 파싱 실패:', e)
+          }
         })
       )
 
       // 2. 방 상태 변경(이동 알림) 채널 구독
       subscriptions.push(
         wsClient.subscribe(`/topic/rooms/${finalRoomNo}/state`, (msg) => {
+          if (!isMounted) return
           try {
             const event = JSON.parse(msg.body)
             console.log('🚀 방 상태 변경 감지! 이벤트:', event)
@@ -127,6 +136,7 @@ export function InviteRoomScreen() {
     })
 
     return () => {
+      isMounted = false
       console.log('🔌 Unsubscribing from WebSocket...')
       subscriptions.forEach(s => s.unsubscribe())
     }
