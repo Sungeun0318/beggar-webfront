@@ -64,6 +64,20 @@ export function HomeScreen() {
           </div>
           <div className="h-[18px]" />
 
+          <button
+            type="button"
+            onClick={() => navigate('/room/create')}
+            className="flex h-[92px] w-full items-center justify-center text-accent"
+            style={softBox({ color: colors.accentBg, radius: radii.card })}
+          >
+            <PlusCircle aria-hidden="true" size={24} />
+            <span className="ml-2 text-base font-extrabold">
+              새 친구방 만들기
+            </span>
+          </button>
+
+          <div className="h-3.5" />
+
           {isLoading ? (
             <div className="flex justify-center py-10 text-sub font-semibold">
               방 목록을 불러오는 중...
@@ -90,19 +104,6 @@ export function HomeScreen() {
               <p className="mt-1 text-sm">새로운 방을 만들어보세요!</p>
             </div>
           )}
-
-          <div className="h-3.5" />
-          <button
-            type="button"
-            onClick={() => navigate('/room/create')}
-            className="flex h-[92px] w-full items-center justify-center text-accent"
-            style={softBox({ color: colors.accentBg, radius: radii.card })}
-          >
-            <PlusCircle aria-hidden="true" size={24} />
-            <span className="ml-2 text-base font-extrabold">
-              새 친구방 만들기
-            </span>
-          </button>
         </section>
         <BottomNav />
       </main>
