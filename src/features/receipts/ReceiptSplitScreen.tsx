@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, Image as ImageIcon, Loader2, MapPin, Search, Scissors, Trash2, X } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Image as ImageIcon, Loader2, MapPin, Search, Scissors, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -9,6 +9,7 @@ import { SectionTitle } from '../../components/SectionTitle'
 import { softBox } from '../../components/ui/softBox'
 import { searchLocations } from '../../lib/api/locations'
 import {
+  checkReceiptDuplicate,
   closeSplitGroup,
   createReceipt,
   createSplitGroup,
@@ -18,6 +19,8 @@ import {
   getSplitGroups,
   updateReceipt,
   uploadReceiptImage,
+  type ReceiptDuplicateCheckResponse,
+  type ReceiptRequest,
 } from '../../lib/api/receipts'
 import { getRoom } from '../../lib/api/rooms'
 import { money } from '../../lib/format'
@@ -44,8 +47,14 @@ export function ReceiptSplitScreen() {
   const [group, setGroup] = useState<SplitGroup | null>(null)
   const [amount, setAmount] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [receiptIssuedAt, setReceiptIssuedAt] = useState('')
   const [pendingReceiptId, setPendingReceiptId] = useState<number | null>(null)
   const [inputMethod, setInputMethod] = useState<'CAMERA' | 'GALLERY' | 'MANUAL'>('MANUAL')
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<ReceiptDuplicateCheckResponse | null>(null)
+  const [pendingReceiptSubmit, setPendingReceiptSubmit] = useState<{
+    payload: ReceiptRequest
+    receiptId: number | null
+  } | null>(null)
 
   const refreshGroup = async (targetGroupId = group?.splitGroupId) => {
     if (!targetGroupId) return
@@ -118,6 +127,7 @@ export function ReceiptSplitScreen() {
         if (isSuccess || finalAmount > 0) {
           window.clearInterval(timer)
           setAmount(String(finalAmount))
+          setReceiptIssuedAt((detail as any).receiptIssuedAt || '')
           setUploading(false)
           await refreshGroup()
         }
@@ -212,15 +222,7 @@ export function ReceiptSplitScreen() {
 
     setIsSubmitting(true)
     try {
-      if (pendingReceiptId) {
-        await updateReceipt(roomNo, pendingReceiptId, {
-          amount: numericAmount,
-          totalAmount: numericAmount,
-          storeName: group.storeName,
-          address: group.address,
-        } as any)
-      } else {
-        await createReceipt(roomNo, {
+      const payload: ReceiptRequest = {
         storeName: group.storeName,
         address: group.address,
         amount: numericAmount,
@@ -230,18 +232,79 @@ export function ReceiptSplitScreen() {
         imageUrl,
         image: imageUrl,
         splitGroupId: group.splitGroupId,
-      } as any)
+        receiptIssuedAt: receiptIssuedAt || undefined,
       }
-      setAmount('')
-      setImageUrl('')
-      setPendingReceiptId(null)
-      setInputMethod('MANUAL')
-      await refreshGroup(group.splitGroupId)
+
+      const duplicateResult = await checkReceiptDuplicate(roomNo, {
+        receiptType: 'SPLIT',
+        storeName: group.storeName,
+        address: group.address,
+        amount: numericAmount,
+        splitGroupId: group.splitGroupId,
+        receiptIssuedAt: receiptIssuedAt || undefined,
+        excludeReceiptId: pendingReceiptId ?? undefined,
+      })
+
+      if (duplicateResult.hasDuplicate) {
+        setPendingReceiptSubmit({
+          payload,
+          receiptId: pendingReceiptId,
+        })
+        setDuplicateCheckResult(duplicateResult)
+        setIsSubmitting(false)
+        return
+      }
+
+      await commitReceipt(payload, pendingReceiptId)
     } catch (error) {
       console.error('분할 영수증 추가 실패:', error)
       alert('영수증을 추가하지 못했습니다.')
-    } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const commitReceipt = async (payload: ReceiptRequest, receiptId: number | null) => {
+    if (!group) return
+
+    if (receiptId) {
+      await updateReceipt(roomNo, receiptId, {
+        amount: payload.amount,
+        totalAmount: payload.totalAmount,
+        storeName: payload.storeName,
+        address: payload.address,
+        receiptIssuedAt: payload.receiptIssuedAt,
+      })
+    } else {
+      await createReceipt(roomNo, payload)
+    }
+
+    setAmount('')
+    setImageUrl('')
+    setReceiptIssuedAt('')
+    setPendingReceiptId(null)
+    setInputMethod('MANUAL')
+    await refreshGroup(group.splitGroupId)
+    setIsSubmitting(false)
+  }
+
+  const cancelDuplicateSubmit = () => {
+    setDuplicateCheckResult(null)
+    setPendingReceiptSubmit(null)
+  }
+
+  const continueDuplicateSubmit = async () => {
+    if (!pendingReceiptSubmit) return
+
+    setIsSubmitting(true)
+    try {
+      await commitReceipt(pendingReceiptSubmit.payload, pendingReceiptSubmit.receiptId)
+    } catch (error) {
+      console.error('중복 경고 후 분할 영수증 추가 실패:', error)
+      alert('영수증을 추가하지 못했습니다.')
+      setIsSubmitting(false)
+    } finally {
+      setDuplicateCheckResult(null)
+      setPendingReceiptSubmit(null)
     }
   }
 
@@ -502,6 +565,50 @@ export function ReceiptSplitScreen() {
             </>
           )}
         </section>
+
+        {duplicateCheckResult && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+            <div className="w-full max-w-[320px] rounded-[24px] bg-white p-6 shadow-2xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+                  <AlertCircle size={30} className="text-red-500" />
+                </div>
+                <h3 className="mb-2 text-lg font-black text-text">비슷한 영수증이 있어요</h3>
+                <p className="mb-3 text-[15px] font-semibold leading-relaxed text-sub">
+                  같은 가게 / 같은 금액 / 비슷한 시간의 영수증입니다.
+                </p>
+                <div className="mb-6 w-full rounded-2xl bg-bg p-3 text-left">
+                  {duplicateCheckResult.candidates.slice(0, 2).map((candidate) => (
+                    <div key={candidate.receiptId} className="border-b border-border py-2 last:border-0">
+                      <p className="text-sm font-bold text-text">{candidate.storeName || group?.storeName || '-'}</p>
+                      <p className="mt-1 text-xs font-semibold text-sub">
+                        {money(candidate.amount)}원 · {(candidate.receiptIssuedAt || candidate.createdAt).slice(0, 16).replace('T', ' ')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid w-full grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelDuplicateSubmit}
+                    disabled={isSubmitting}
+                    className="h-14 rounded-2xl border border-border bg-white text-base font-bold text-sub active:opacity-90 disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={continueDuplicateSubmit}
+                    disabled={isSubmitting}
+                    className="h-14 rounded-2xl bg-text text-base font-bold text-white active:opacity-90 disabled:opacity-50"
+                  >
+                    {isSubmitting ? '추가 중' : '그래도 추가'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )

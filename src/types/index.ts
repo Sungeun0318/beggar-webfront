@@ -92,6 +92,7 @@ export type Receipt = {
   storeName?: string
   totalAmount?: number
   amount: number
+  receiptIssuedAt?: string
   address?: string
   createdAt?: string
   splits?: {

@@ -6,7 +6,7 @@ import { AppHeaderBrand } from '../../components/AppHeader'
 import { BottomNav } from '../../components/BottomNav'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { RoomHomeCard } from '../../components/RoomHomeCard'
-import { deleteRoom, findMyRooms, searchRooms } from '../../lib/api/rooms'
+import { deleteRoom, searchRooms } from '../../lib/api/rooms'
 import { colors, radii, spacing } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
 import type { Room } from '../../types'
@@ -133,4 +133,3 @@ export function HomeScreen() {
     </PhoneFrame>
   )
 }
-
