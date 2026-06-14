@@ -99,6 +99,10 @@ export type Receipt = {
     userName?: string
     amount?: number
   }[]
+  images?: {
+    url: string
+    uploaderName: string
+  }[]
 }
 
 export type SplitGroupItem = {

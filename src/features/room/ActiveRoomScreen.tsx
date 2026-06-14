@@ -83,6 +83,8 @@ export function ActiveRoomScreen() {
   const [receiptList, setReceiptList] = useState<Receipt[]>([])
   const [splitGroups, setSplitGroups] = useState<SplitGroup[]>([])
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
+  const [showImage, setShowImage] = useState(false)
+  const [currentImgIdx, setCurrentImgIdx] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState('한식')
   const [initialRecommendedPlaces, setInitialRecommendedPlaces] = useState<RecommendedPlace[]>([])
@@ -177,7 +179,6 @@ export function ActiveRoomScreen() {
   const remaining = total - spent
   const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
   const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
-  const openSplitGroups = splitGroups.filter(group => group.status === 'OPEN')
   const groupedReceiptIds = new Set(
     splitGroups.flatMap(group => group.items.map(item => item.receiptId)),
   )
@@ -188,6 +189,15 @@ export function ActiveRoomScreen() {
 
   const userNo = Number(localStorage.getItem('userNo'))
   const isOwner = userNo === displayRoom.ownerNo
+
+  const allTimelineItems = [
+    ...splitGroups.map((g) => ({ ...g, timelineType: 'SPLIT_GROUP' as const })),
+    ...ungroupedReceipts.map((r) => ({ ...r, timelineType: 'RECEIPT' as const })),
+  ].sort((a, b) => {
+    const dateA = new Date(a.createdAt || (a as any).date || 0).getTime()
+    const dateB = new Date(b.createdAt || (b as any).date || 0).getTime()
+    return dateB - dateA
+  })
 
   const handleCloseRoom = async () => {
     if (!window.confirm('정말로 방을 종료하시겠습니까?\n종료 후에는 영수증 등록 및 추천 서비스를 이용할 수 없습니다.')) {
@@ -339,69 +349,91 @@ export function ActiveRoomScreen() {
           )}
           <div className="h-3.5" />
           <div className="space-y-3">
-            {openSplitGroups.map((group) => (
-              <button
-                key={group.splitGroupId}
-                type="button"
-                onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
-                className="flex w-full items-center justify-between rounded-card border border-accent bg-white p-4 text-left"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Scissors size={18} color={colors.accent} />
-                    <p className="truncate text-[15px] font-black text-text">
-                      분할 진행 중 · {group.storeName}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-sub">
-                    {group.receiptCount}장 · {group.contributorCount}명
-                  </p>
-                </div>
-                <span className="shrink-0 text-[15px] font-black text-accent">
-                  {money(group.totalAmount)}원
-                </span>
-              </button>
-            ))}
-
-            {splitGroups
-              .filter(group => group.status !== 'OPEN')
-              .map((group) => (
-                <button
-                  key={group.splitGroupId}
-                  type="button"
-                  onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
-                  className="flex w-full items-center justify-between rounded-card border border-border bg-white p-4 text-left"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-black text-text">[분할] {group.storeName}</p>
-                    <p className="mt-1 text-xs font-bold text-sub">
-                      마감 · {group.receiptCount}장 · {group.contributorCount}명
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[15px] font-black text-text">
-                    {money(group.totalAmount)}원
-                  </span>
-                </button>
-              ))}
-
-            {ungroupedReceipts.length > 0 ? (
-              ungroupedReceipts.map((receipt, index) => {
+            {allTimelineItems.map((item, idx) => {
+              if (item.timelineType === 'SPLIT_GROUP') {
+                const group = item as SplitGroup
+                if (group.status === 'OPEN') {
+                  return (
+                    <button
+                      key={`open-${group.splitGroupId}`}
+                      type="button"
+                      onClick={() => navigate(`/receipts/split?roomNo=${roomNo}`)}
+                      className="flex w-full items-center justify-between rounded-card border border-accent bg-white p-4 text-left"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Scissors size={18} color={colors.accent} />
+                          <p className="truncate text-[15px] font-black text-text">
+                            분할 진행 중 · {group.storeName}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-sub">
+                          {group.receiptCount}장 · {group.contributorCount}명
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[15px] font-black text-accent">
+                        {money(group.totalAmount)}원
+                      </span>
+                    </button>
+                  )
+                } else {
+                  return (
+                    <button
+                      key={`closed-${group.splitGroupId}`}
+                      type="button"
+                      onClick={() => setSelectedReceipt({
+                        receiptType: 'SPLIT',
+                        title: group.storeName,
+                        amount: group.totalAmount,
+                        address: group.address,
+                        createdAt: group.createdAt,
+                        imageUrl: group.items[0]?.imageUrl,
+                        date: group.createdAt?.slice(0, 10) || '',
+                        room: displayRoom.name,
+                        image: group.items[0]?.imageUrl || '',
+                        images: group.items.map(item => ({
+                          url: item.imageUrl || '',
+                          uploaderName: item.uploaderName
+                        })).filter(img => img.url),
+                        splits: group.items.map(item => ({
+                          userName: item.uploaderName,
+                          amount: item.amount
+                        }))
+                      } as Receipt)}
+                      className="flex w-full items-center justify-between rounded-card border border-border bg-white p-4 text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-black text-text">[분할] {group.storeName}</p>
+                        <p className="mt-1 text-xs font-bold text-sub">
+                          마감 · {group.receiptCount}장 · {group.contributorCount}명
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[15px] font-black text-text">
+                        {money(group.totalAmount)}원
+                      </span>
+                    </button>
+                  )
+                }
+              } else {
+                const receipt = item as Receipt
                 const prefix = receipt.receiptType === 'COMBINED' ? '[통합] ' : receipt.receiptType === 'SPLIT' ? '[분할] ' : ''
-                const title = (receipt.title || (receipt as any).storeName || '이름 없는 지출')
+                const title = (receipt.title || receipt.storeName || '이름 없는 지출')
                 
                 return (
-                  <div key={receipt.id || index} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
+                  <div key={receipt.id || idx} onClick={() => setSelectedReceipt(receipt)} className="cursor-pointer">
                     <ReceiptCard
-                      date={receipt.date || (receipt as any).createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
+                      date={receipt.date || receipt.createdAt?.slice(0, 10).replaceAll('-', '.') || ''}
                       room={receipt.room || displayRoom.name}
-                      image={receipt.image || (receipt as any).imageUrl}
+                      image={receipt.image || receipt.imageUrl || ''}
                       title={`${prefix}${title}`}
-                      amount={`${money(receipt.amount || (receipt as any).totalAmount || 0)}원`}
+                      amount={`${money(receipt.amount || receipt.totalAmount || 0)}원`}
                     />
                   </div>
                 )
-              })
-            ) : splitGroups.length === 0 ? (
+              }
+            })}
+
+            {allTimelineItems.length === 0 && (
               <div 
                 className="flex h-[96px] w-full flex-col items-center justify-center rounded-card border border-border bg-white text-sub"
                 onClick={() => navigate(`/receipts/register?roomNo=${roomNo}`)}
@@ -409,7 +441,7 @@ export function ActiveRoomScreen() {
                 <p className="text-sm font-bold">등록된 영수증이 없어요.</p>
                 <p className="mt-1 text-[11px] font-semibold">첫 영수증을 등록해보세요!</p>
               </div>
-            ) : null}
+            )}
           </div>
           <div className="h-6" />
           <section
@@ -542,59 +574,139 @@ export function ActiveRoomScreen() {
         {selectedReceipt && (
           <div 
             className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-6"
-            onClick={() => setSelectedReceipt(null)}
+            onClick={() => {
+              setSelectedReceipt(null)
+              setShowImage(false)
+              setCurrentImgIdx(0)
+            }}
           >
             <div 
               className="w-full max-w-[360px] rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in duration-300 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative w-full bg-white flex items-center justify-center overflow-hidden border-b border-border/50" style={{ minHeight: '260px', maxHeight: '50vh' }}>
-                <img
-                  src={selectedReceipt.image || (selectedReceipt as any).imageUrl}
-                  alt="영수증 원본"
-                  className="w-full h-auto max-h-[50vh] object-contain"
-                />
-                <button
-                  onClick={() => setSelectedReceipt(null)}
-                  className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-black/10 text-white backdrop-blur-sm"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+              {showImage && (
+                <div className="relative w-full bg-white border-b border-border/50 animate-in slide-in-from-top duration-300">
+                  <div 
+                    className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar" 
+                    style={{ maxHeight: '55vh' }}
+                    onScroll={(e) => {
+                      const container = e.currentTarget
+                      const idx = Math.round(container.scrollLeft / container.clientWidth)
+                      if (idx !== currentImgIdx) setCurrentImgIdx(idx)
+                    }}
+                  >
+                    {(selectedReceipt.images && selectedReceipt.images.length > 0 
+                      ? selectedReceipt.images 
+                      : [{ url: selectedReceipt.image || selectedReceipt.imageUrl || '', uploaderName: '' }]
+                    ).map((imgObj, idx, arr) => (
+                      <div key={idx} className="relative min-w-full snap-center flex flex-col items-center justify-center bg-white py-4">
+                        <img
+                          src={imgObj.url}
+                          alt={`영수증 ${idx + 1}`}
+                          className="w-full h-auto max-h-[45vh] object-contain px-2"
+                        />
+                        {arr.length > 1 && (
+                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                            {idx + 1} / {arr.length}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowImage(false)}
+                    className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full bg-black/10 text-white backdrop-blur-sm"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
               
               <div className="p-6">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-[20px] font-black text-text leading-tight flex-1">
-                    {selectedReceipt.receiptType === 'COMBINED' ? '[통합] ' : selectedReceipt.receiptType === 'SPLIT' ? '[분할] ' : ''}
-                    {selectedReceipt.title || (selectedReceipt as any).storeName || '이름 없는 지출'}
-                  </h3>
-                  <span className="text-[17px] font-black text-accent whitespace-nowrap">
-                    {money(selectedReceipt.amount || (selectedReceipt as any).totalAmount || 0)}원
-                  </span>
-                </div>
-                
-                <div className="mt-5 space-y-3.5">
-                  <div className="flex items-start">
-                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
-                      <MapPin size={12} color={colors.accent} />
+                {!showImage ? (
+                  <>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[20px] font-black text-text leading-tight truncate">
+                          {selectedReceipt.receiptType === 'COMBINED' ? '[통합] ' : selectedReceipt.receiptType === 'SPLIT' ? '[분할] ' : ''}
+                          {selectedReceipt.title || selectedReceipt.storeName || '이름 없는 지출'}
+                        </h3>
+                        <button 
+                          onClick={() => setShowImage(true)}
+                          className="mt-1 flex items-center gap-1 text-[13px] font-bold text-accent hover:opacity-80 transition-opacity"
+                        >
+                          <ReceiptText size={14} />
+                          영수증 보기
+                        </button>
+                      </div>
+                      <span className="text-[17px] font-black text-accent whitespace-nowrap pt-1">
+                        {money(selectedReceipt.amount || selectedReceipt.totalAmount || 0)}원
+                      </span>
                     </div>
-                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
-                      {selectedReceipt.address || '주소 정보가 없습니다.'}
-                    </p>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
-                      <ReceiptText size={12} color={colors.accent} />
+                    
+                    <div className="mt-5 space-y-3.5">
+                      <div className="flex items-start">
+                        <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                          <MapPin size={12} color={colors.accent} />
+                        </div>
+                        <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                          {selectedReceipt.address || '주소 정보가 없습니다.'}
+                        </p>
+                      </div>
+                      <div className="flex items-start">
+                        <div className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accentBg">
+                          <ReceiptText size={12} color={colors.accent} />
+                        </div>
+                        <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
+                          등록일: {selectedReceipt.date || selectedReceipt.createdAt?.slice(0, 16).replaceAll('-', '.').replace('T', ' ') || '-'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="ml-2.5 text-[14px] font-semibold leading-relaxed text-sub">
-                      등록일: {selectedReceipt.date || (selectedReceipt as any).createdAt?.slice(0, 16).replaceAll('-', '.').replace('T', ' ') || '-'}
-                    </p>
+
+                    {/* 결제 참여자 내역 - 분할 영수증일 때만 텍스트 모드에서 표시 */}
+                    {selectedReceipt.receiptType === 'SPLIT' && selectedReceipt.splits && selectedReceipt.splits.length > 0 && (
+                      <div className="mt-6 pt-5 border-t border-dashed border-border/60">
+                        <p className="text-[13px] font-bold text-lightSub mb-3">결제 참여자 내역</p>
+                        <div className="space-y-3">
+                          {selectedReceipt.splits.map((s, i) => (
+                            <div key={i} className="flex justify-between items-center">
+                              <span className="text-[15px] font-bold text-text">{s.userName}</span>
+                              <span className="text-[15px] font-black text-accent">{money(s.amount || 0)}원</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* 이미지 모드 */
+                  <div className="animate-in fade-in duration-500">
+                    {selectedReceipt.receiptType === 'SPLIT' ? (
+                      <>
+                        <p className="text-[13px] font-bold text-lightSub mb-1.5">영수증 업로더</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[18px] font-black text-text">
+                            {selectedReceipt.images?.[currentImgIdx]?.uploaderName || '정보 없음'}
+                          </span>
+                          <span className="rounded-full bg-accent/10 px-3 py-1 text-[12px] font-black text-accent">
+                            증빙 완료
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      /* 통합 영수증은 추가 정보 없이 사진만 보여줌 */
+                      null
+                    )}
                   </div>
-                </div>
+                )}
 
                 <button
-                  onClick={() => setSelectedReceipt(null)}
-                  className="mt-8 h-13 w-full rounded-2xl bg-accent text-[16px] font-bold text-white shadow-lg shadow-accent/20 active:scale-[0.98] transition-transform"
+                  onClick={() => {
+                    setSelectedReceipt(null)
+                    setShowImage(false)
+                    setCurrentImgIdx(0)
+                  }}
+                  className="mt-8 h-14 w-full rounded-2xl bg-accent text-[16px] font-bold text-white shadow-lg shadow-accent/20 active:scale-[0.98] transition-transform"
                 >
                   확인
                 </button>
