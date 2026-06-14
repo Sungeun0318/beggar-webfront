@@ -113,7 +113,7 @@ export function ActiveRoomScreen() {
   }, [roomNo])
 
   useEffect(() => {
-    if (!room) {
+    if (!room || room.status === 'ENDED') {
       return
     }
 
@@ -136,7 +136,7 @@ export function ActiveRoomScreen() {
   }, [room, roomNo])
 
   useEffect(() => {
-    if (!room) {
+    if (!room || room.status === 'ENDED') {
       return
     }
 
