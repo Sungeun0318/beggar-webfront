@@ -12,7 +12,7 @@ import {
   deleteReceipt,
   getReceiptDetail,
   updateReceipt,
-  uploadReceiptImage,
+  uploadReceiptImageWithHash,
   type ReceiptDuplicateCheckResponse,
   type ReceiptRequest,
 } from '../../lib/api/receipts'
@@ -52,6 +52,7 @@ export function ReceiptRegisterScreen() {
   const [storeName, setStoreName] = useState('')
   const [amount, setAmount] = useState('')
   const [receiptIssuedAt, setReceiptIssuedAt] = useState('')
+  const [pendingImageHash, setPendingImageHash] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // OCR 로딩 상태
@@ -169,7 +170,8 @@ export function ReceiptRegisterScreen() {
     setOcrLoading(true)
     setActiveInputMethod(method)
     try {
-      const imageUrl = await uploadReceiptImage(roomNo, file)
+      const { imageUrl, imageHash } = await uploadReceiptImageWithHash(roomNo, file)
+      setPendingImageHash(imageHash)
       const receiptData = {
         storeName: '',
         amount: 0,
@@ -177,6 +179,7 @@ export function ReceiptRegisterScreen() {
         inputMethod: method,
         image: imageUrl,
         imageUrl: imageUrl,
+        imageHash,
       }
       let finalReceiptId: number
       if (currentReceiptId) {
@@ -217,6 +220,7 @@ export function ReceiptRegisterScreen() {
         centerLat: selectedStore.lat,
         centerLng: selectedStore.lng,
         receiptIssuedAt: receiptIssuedAt || undefined,
+        imageHash: pendingImageHash || undefined,
       }
 
       const duplicateResult = await checkReceiptDuplicate(roomNo, {

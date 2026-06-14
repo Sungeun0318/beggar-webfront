@@ -18,7 +18,7 @@ import {
   getSplitGroup,
   getSplitGroups,
   updateReceipt,
-  uploadReceiptImage,
+  uploadReceiptImageWithHash,
   type ReceiptDuplicateCheckResponse,
   type ReceiptRequest,
 } from '../../lib/api/receipts'
@@ -47,6 +47,7 @@ export function ReceiptSplitScreen() {
   const [group, setGroup] = useState<SplitGroup | null>(null)
   const [amount, setAmount] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [pendingImageHash, setPendingImageHash] = useState('')
   const [receiptIssuedAt, setReceiptIssuedAt] = useState('')
   const [pendingReceiptId, setPendingReceiptId] = useState<number | null>(null)
   const [inputMethod, setInputMethod] = useState<'CAMERA' | 'GALLERY' | 'MANUAL'>('MANUAL')
@@ -183,8 +184,9 @@ export function ReceiptSplitScreen() {
         alert('진행 중인 분할 그룹이 없습니다.')
         return
       }
-      const nextImageUrl = await uploadReceiptImage(roomNo, file)
+      const { imageUrl: nextImageUrl, imageHash } = await uploadReceiptImageWithHash(roomNo, file)
       setImageUrl(nextImageUrl)
+      setPendingImageHash(imageHash)
       const receipt = await createReceipt(roomNo, {
         storeName: group.storeName,
         address: group.address,
@@ -193,6 +195,7 @@ export function ReceiptSplitScreen() {
         receiptType: 'SPLIT',
         inputMethod: method,
         imageUrl: nextImageUrl,
+        imageHash,
         image: nextImageUrl,
         splitGroupId: group.splitGroupId,
       } as any)
@@ -231,6 +234,7 @@ export function ReceiptSplitScreen() {
         inputMethod,
         imageUrl,
         image: imageUrl,
+        imageHash: pendingImageHash || undefined,
         splitGroupId: group.splitGroupId,
         receiptIssuedAt: receiptIssuedAt || undefined,
       }
@@ -280,6 +284,7 @@ export function ReceiptSplitScreen() {
 
     setAmount('')
     setImageUrl('')
+    setPendingImageHash('')
     setReceiptIssuedAt('')
     setPendingReceiptId(null)
     setInputMethod('MANUAL')

@@ -20,7 +20,7 @@ export class WebSocketClient {
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      onConnect: (frame) => {
+      onConnect: () => {
         this.connected = true;
         this.connectionPromise = null;
         console.log("✅ WebSocket connected");

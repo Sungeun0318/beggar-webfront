@@ -87,6 +87,7 @@ export type Receipt = {
   room: string
   image: string
   imageUrl?: string
+  imageHash?: string
   splitGroupId?: number
   title: string
   storeName?: string

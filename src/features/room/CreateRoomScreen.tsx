@@ -197,7 +197,7 @@ export function CreateRoomScreen() {
 
               const requestBody = {
                 roomName: roomName,
-                location: selectedLocation ? locationLabel(selectedLocation) : '',
+                location: selectedLocation ? selectedLocation.address : '',
                 maxMemberCount: maxMemberCount,
                 isFriends: true,
                 tags: selectedTag ? [selectedTag] : [],

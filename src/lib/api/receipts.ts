@@ -12,6 +12,7 @@ export type ReceiptRequest = {
   inputMethod: 'CAMERA' | 'GALLERY' | 'MANUAL'
   image?: string
   imageUrl?: string
+  imageHash?: string
   uploaderUserNo?: number
   splitGroupId?: number
   address?: string
@@ -124,12 +125,14 @@ export async function updateReceipt(
 export async function uploadReceiptImage(
   roomNo: number,
   file: File,
+  imageHash?: string,
 ): Promise<string> {
   if (MOCK.receipts) {
     return 'assets/images/figma/receipt_food.png'
   }
 
-  const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`
+  const safeName = file.name.replace(/\s/g, '_')
+  const fileName = imageHash ? `${imageHash}_${safeName}` : `${Date.now()}_${safeName}`
   const uploadUrl = await client.post<string>(
     `/rooms/${roomNo}/receipts/upload-url`,
     null,
@@ -146,6 +149,26 @@ export async function uploadReceiptImage(
   }
 
   return uploadUrl.split('?')[0]
+}
+
+export async function uploadReceiptImageWithHash(
+  roomNo: number,
+  file: File,
+): Promise<{ imageUrl: string; imageHash: string }> {
+  const imageHash = await calculateFileSha256(file)
+  const imageUrl = await uploadReceiptImage(roomNo, file, imageHash)
+  return { imageUrl, imageHash }
+}
+
+async function calculateFileSha256(file: File): Promise<string> {
+  if (!window.crypto?.subtle) {
+    throw new Error('브라우저가 파일 중복 검사를 지원하지 않습니다.')
+  }
+
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 let mockPollCount = 0
