@@ -1,13 +1,10 @@
 import { X } from 'lucide-react'
 import { colors, radii } from '../theme/tokens'
-import { money } from '../lib/format'
 import { softBox } from './ui/softBox'
 
 type RoomHomeCardProps = {
   title: string
   location: string
-  budget: number
-  spent: number
   memberCount: number
   status: string
   isOwner?: boolean
@@ -18,15 +15,12 @@ type RoomHomeCardProps = {
 export function RoomHomeCard({
   title,
   location,
-  budget,
-  spent,
   memberCount,
   status,
   isOwner = false,
   onTap,
   onDelete,
 }: RoomHomeCardProps) {
-  const ratio = budget > 0 ? Math.min(Math.max(spent / budget, 0), 1) : 0
   const isDraft = status === 'DRAFT'
   const isInviting = status === 'INVITING'
   const isEnded = status === 'ENDED'
@@ -66,7 +60,7 @@ export function RoomHomeCard({
           onTap()
         }
       }}
-      className="relative flex h-[158px] w-full cursor-pointer flex-col p-[18px] text-left outline-none transition-opacity active:opacity-90"
+      className="relative flex h-[120px] w-full cursor-pointer flex-col p-[18px] text-left outline-none transition-opacity active:opacity-90"
       style={softBox({ radius: radii.card, shadow: true })}
     >
       <div className="flex items-center">
@@ -99,20 +93,6 @@ export function RoomHomeCard({
       <p className="mt-2 text-[13px] font-semibold text-sub">
         {location} · {memberCount}명
       </p>
-      <div className="flex-1" />
-      <div className="flex items-center">
-        <span className="text-[15px] font-extrabold text-text">
-          {money(spent)}원 사용
-        </span>
-        <div className="flex-1" />
-        <span className="text-xs font-bold text-lightSub">
-          총 {money(budget)}원
-        </span>
-      </div>
-      <div className="h-2.5" />
-      <div className="h-2 overflow-hidden rounded-chip bg-muted">
-        <div className="h-full bg-accent" style={{ width: `${ratio * 100}%` }} />
-      </div>
     </div>
   )
 }
