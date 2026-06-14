@@ -48,3 +48,11 @@ jobs:                             # [필수] 작업(Job) 집합 정의
       - name: Deploy to S3                                            # [필수] S3 버킷으로 배포하는 단계
         run: aws s3 sync ./dist s3://${{ secrets.AWS_S3_BUCKET }} --delete
         shell: bash                                                   # [필수] bash 쉘 사용
+
+      # 7. CloudFront 캐시 무효화
+      #    S3에만 올리면 CloudFront가 옛 index.html/번들을 계속 내려보내
+      #    사용자에게 새 배포가 전파되지 않음. 매 배포마다 캐시를 비운다.
+      #    ※ 이 단계는 IAM 사용자에 cloudfront:CreateInvalidation 권한이 필요함.
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id E3H6ATPGTFHM8O --paths "/*"
+        shell: bash
