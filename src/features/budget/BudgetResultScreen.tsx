@@ -1,6 +1,6 @@
 import { Lock, Sparkles, Star, Users, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { InfoCard } from '../../components/InfoCard'
@@ -14,12 +14,17 @@ import { softBox } from '../../components/ui/softBox'
 
 export function BudgetResultScreen() {
   const navigate = useNavigate()
-  const { roomNo } = useParams()
+  const { roomNo: pathRoomNo } = useParams()
+  const [searchParams] = useSearchParams()
+  const roomNo = searchParams.get('roomNo') || pathRoomNo
+
   const [data, setData] = useState<BudgetResult | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchData() {
+      if (!roomNo) return
+
       try {
         const result = await getBudgetResult(Number(roomNo))
         console.log('📦 백엔드가 준 결과 화면 원본 통:', result)

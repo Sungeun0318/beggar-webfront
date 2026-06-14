@@ -52,7 +52,9 @@ function App() {
         <Route path="/join/:code" element={<JoinRoomScreen />} />
         <Route path="/join" element={<JoinRoomScreen />} />
         <Route path="/budget/input/:roomNo" element={<BudgetInputScreen />} />
+        <Route path="/budget/input" element={<BudgetInputScreen />} />
         <Route path="/budget/result/:roomNo" element={<BudgetResultScreen />} />
+        <Route path="/budget/result" element={<BudgetResultScreen />} />
         <Route path="/recommend" element={<RecommendationScreen />} />
         <Route path="/receipts/register" element={<ReceiptRegisterScreen />} />
         <Route path="/receipts/split" element={<ReceiptSplitScreen />} />

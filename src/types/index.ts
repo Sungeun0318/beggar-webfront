@@ -37,7 +37,7 @@ export type Room = {
   tags: string[]
   memberCount: number
   maxMemberCount: number
-  status?: string
+  status?: 'DRAFT' | 'INVITING' | 'ACTIVE' | 'ENDED' | 'BUDGET_INPUT' | string
   budget?: number
   spent?: number
 }

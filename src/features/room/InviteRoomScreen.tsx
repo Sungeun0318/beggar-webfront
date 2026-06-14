@@ -17,9 +17,13 @@ import { shareRoomInvitation } from '../../lib/kakao'
 
 export function InviteRoomScreen() {
   const navigate = useNavigate()
-  const { roomNo } = useParams()
+  const { roomNo: pathRoomNo } = useParams()
   const location = useLocation()
-  const targetRoomNo = Number(roomNo) || 1
+  
+  // 🌟 URL에 방 번호가 있으면 그걸 최우선으로 사용, 없으면 로컬스토리지 사용
+  const urlRoomNo = Number(pathRoomNo)
+  const savedRoomNo = Number(localStorage.getItem('recentRoomNo'))
+  const finalRoomNo = urlRoomNo || savedRoomNo || 1
 
   // 방 생성 직후 넘어온 경우, 생성 응답의 roomCode를 바로 사용
   const presetRoom = (location.state as { room?: { name?: string; code?: string; maxMemberCount?: number } } | null)?.room
@@ -28,17 +32,15 @@ export function InviteRoomScreen() {
     roomName: presetRoom?.name ?? '로딩 중...',
     roomCode: presetRoom?.code ?? 'loading...',
     maxMemberCount: presetRoom?.maxMemberCount ?? 0,
+    ownerNo: 0,
   })
   const [roomMembers, setRoomMembers] = useState<Member[]>([])
   const [copied, setCopied] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+
+  const myUserNo = Number(localStorage.getItem('userNo'))
 
   useEffect(() => {
-    const urlRoomNo = Number(roomNo)
-    const savedRoomNo = Number(localStorage.getItem('recentRoomNo'))
-    
-    // 🌟 URL에 방 번호가 있으면 그걸 최우선으로 사용합니다! (로컬스토리지보다 우선)
-    const finalRoomNo = urlRoomNo || savedRoomNo || 1
-
     console.log('🚀 백엔드 방 상세조회 호출!! 방 번호:', finalRoomNo)
 
     Promise.all([
@@ -59,11 +61,13 @@ export function InviteRoomScreen() {
           const name = res.roomName || res.name || '새로운 거지방'
           const code = res.roomCode || res.code || 'SsWgDgaQt1FC'
           const maxCount = Number(res.maxMemberCount) || 2
+          const ownerNo = res.ownerUserNo || res.ownerNo
 
           setRoomData({
             roomName: name,
             roomCode: code,
             maxMemberCount: maxCount,
+            ownerNo,
           })
 
           // ✅ 데이터를 성공적으로 가져왔을 때만 로컬스토리지를 최신화합니다.
@@ -71,72 +75,97 @@ export function InviteRoomScreen() {
           localStorage.setItem('recentRoomName', name)
           localStorage.setItem('recentRoomCode', code)
           localStorage.setItem('recentMaxMember', maxCount.toString())
-        } else {
-          setRoomData({
-            roomName: localStorage.getItem('recentRoomName') || '새로운 거지방',
-            roomCode: localStorage.getItem('recentRoomCode') || 'SsWgDgaQt1FC',
-            maxMemberCount: Number(localStorage.getItem('recentMaxMember')) || 2,
-          })
         }
 
-        let finalMembers: Member[] = []
-        if (Array.isArray(membersResponse) && membersResponse.length > 0) {
-          finalMembers = membersResponse
-        } else {
-          finalMembers = [
-            { name: '나 (방장)', status: '대기 중', mine: true },
-            { name: '대기 중인 거지 1', status: '초대 중', mine: false },
-          ]
+        if (Array.isArray(membersResponse)) {
+          setRoomMembers(membersResponse)
         }
-        setRoomMembers(finalMembers)
       })
       .catch((err) => {
         console.error('🔥 데이터 최종 결합 실패:', err)
       })
 
     // 🌐 WebSocket 연결 및 구독 설정
-    let subscription: { unsubscribe: () => void } | undefined
+    const subscriptions: { unsubscribe: () => void }[] = []
 
     wsClient.connect(() => {
       console.log('✅ WebSocket Connected in InviteRoom!')
 
-      // 단일 채널 구독으로 통합: /topic/rooms/{roomNo}
-      subscription = wsClient.subscribe(
-        `/topic/rooms/${finalRoomNo}`,
-        (msg) => {
-          const body = JSON.parse(msg.body)
-          console.log('📨 WebSocket 메시지 수신:', body.type, body)
+      // 1. 멤버 현황 채널 구독
+      subscriptions.push(
+        wsClient.subscribe(`/topic/rooms/${finalRoomNo}/members`, (msg) => {
+          const members = JSON.parse(msg.body)
+          console.log('👥 멤버 리스트 갱신됨:', members)
+          setRoomMembers(members)
+        })
+      )
 
-          switch (body.type) {
-            case 'MEMBERS_UPDATED':
-              console.log('👥 멤버 리스트 갱신됨:', body.data)
-              setRoomMembers(body.data)
-              break
+      // 2. 방 상태 변경(이동 알림) 채널 구독
+      subscriptions.push(
+        wsClient.subscribe(`/topic/rooms/${finalRoomNo}/state`, (msg) => {
+          try {
+            const event = JSON.parse(msg.body)
+            console.log('🚀 방 상태 변경 감지! 이벤트:', event)
 
-            case 'BUDGET_INPUT_STARTED': {
-              console.log('🚀 예산 입력 시작됨! 이동 경로:', body.data)
-              let targetUrl = body.data
-              // query param 형식을 path param 형식으로 변환 (필요시)
-              if (targetUrl && targetUrl.includes('?roomNo=')) {
-                const rNo = targetUrl.split('?roomNo=')[1]
-                targetUrl = `/budget/input/${rNo}`
+            // 1. 이벤트 타입이 BUDGET_INPUT_STARTED 인지 확인
+            if (event.type === 'BUDGET_INPUT_STARTED') {
+              // 2. 서버가 준 데이터(nextPath)로 이동 (예: /budget/input?roomNo=11)
+              const nextPath = event.data
+              if (nextPath) {
+                navigate(nextPath)
               }
-              navigate(targetUrl || `/budget/input/${finalRoomNo}`)
-              break
             }
-
-            default:
-              console.log('ℹ️ 처리되지 않은 이벤트 타입:', body.type)
+          } catch (e) {
+            console.error('WebSocket 메시지 파싱 에러:', e)
+            // 폴백: 예전처럼 문자열 자체가 경로인 경우 처리 (필요시)
+            if (msg.body && msg.body.startsWith('/')) {
+              navigate(msg.body)
+            }
           }
-        },
+        })
       )
     })
 
     return () => {
       console.log('🔌 Unsubscribing from WebSocket...')
-      subscription?.unsubscribe()
+      subscriptions.forEach(s => s.unsubscribe())
     }
-  }, [roomNo, navigate])
+  }, [finalRoomNo, navigate])
+
+  const isOwner = roomMembers.find(m => m.userNo === myUserNo || m.mine)?.userNo === roomData.ownerNo || 
+                  roomMembers.find(m => m.userNo === myUserNo || m.mine)?.name.includes('방장')
+  // 모든 인원이 모여야 시작할 수 있도록 변경
+  const isFull = roomMembers.length >= roomData.maxMemberCount
+  const canStart = isFull && !isStarting
+
+  const handleStartBudget = async () => {
+    if (!canStart) {
+      if (!isFull && !isStarting) {
+        alert(`모든 인원(${roomData.maxMemberCount}명)이 모여야 시작할 수 있습니다.`)
+      }
+      return
+    }
+
+    setIsStarting(true)
+    try {
+      await startBudgetInput(finalRoomNo)
+      // 💡 방장은 API 성공 시 바로 이동합니다 (WebSocket을 기다리지 않고)
+      // 멤버들은 WebSocket 이벤트를 받고 이동하게 됩니다.
+      navigate(`/budget/input/${finalRoomNo}`)
+    } catch (err: any) {
+      console.error('🔥 예산 입력 시작 실패:', err)
+      
+      // 이미 시작된 경우라면 그냥 이동시켜 줍니다.
+      if (err.status === 400 && err.message?.includes('이미 예산')) {
+        navigate(`/budget/input/${finalRoomNo}`)
+        return
+      }
+
+      alert('예산 입력을 시작하지 못했습니다. 다시 시도해 주세요.')
+    } finally {
+      setIsStarting(false)
+    }
+  }
 
   const invitePath = `/join/${roomData.roomCode}`
   const inviteUrl =
@@ -253,19 +282,21 @@ export function InviteRoomScreen() {
               body="채팅 없이 초대와 예산 제출 상태만 확인해요."
             />
             <div className="h-6" />
-            <PrimaryButton
-              label="예산 입력 시작"
-              onTap={async () => {
-                try {
-                  // 🚀 예산 입력을 시작한다고 백엔드에 알립니다.
-                  await startBudgetInput(targetRoomNo)
-                } catch (err) {
-                  console.error('🔥 예산 입력 시작 실패:', err)
-                  // 에러가 나더라도 화면 이동은 시도합니다. (이미 시작된 방일 수 있음)
-                }
-                navigate(`/budget/input/${targetRoomNo}`)
-              }}
-            />
+            
+            {isOwner ? (
+              <PrimaryButton
+                label="예산 입력 시작"
+                onTap={handleStartBudget}
+                enabled={canStart}
+              />
+            ) : (
+              <div className="w-full py-4 text-center bg-gray-100 rounded-compact">
+                <p className="text-sm font-bold text-sub">
+                  방장이 예산 입력을 시작할 때까지 기다려 주세요.
+                </p>
+              </div>
+            )}
+            
             <div style={{ height: spacing.bottomSafe }} />
           </div>
         </section>
