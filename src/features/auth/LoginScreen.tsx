@@ -1,10 +1,10 @@
-import { Cake, Lock, Mail, Users } from 'lucide-react'
-import { useEffect } from 'react'
-import { useState } from 'react'
+import { AtSign, Cake, KeyRound, Users, type LucideIcon } from 'lucide-react'
+import { type KeyboardEvent, type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
+import { softBox } from '../../components/ui/softBox'
 import { login, loginWithKakaoCode } from '../../lib/api/auth'
 import {
   authorizeWithKakao,
@@ -12,17 +12,21 @@ import {
   getKakaoRedirectUri,
 } from '../../lib/kakao'
 import { colors, radii } from '../../theme/tokens'
-import { softBox } from '../../components/ui/softBox'
 
 type AuthTextFieldProps = {
   value: string
   onChange: (value: string) => void
   placeholder: string
   type?: 'email' | 'password' | 'text'
-  Icon: typeof Mail
+  Icon: LucideIcon
 }
 
-const kakaoProfileStorageKey = 'kakaoLoginProfile'
+function fieldStyle() {
+  return {
+    backgroundColor: colors.bg,
+    borderRadius: radii.compact,
+  }
+}
 
 function AuthTextField({
   value,
@@ -32,21 +36,22 @@ function AuthTextField({
   Icon,
 }: AuthTextFieldProps) {
   return (
-    <label
-      className="flex h-14 items-center px-4"
-      style={{
-        backgroundColor: colors.bg,
-        borderRadius: radii.compact,
-      }}
-    >
-      <Icon aria-hidden="true" size={20} color={colors.placeholder} />
+    <label className="flex h-14 items-center px-4" style={fieldStyle()}>
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+        style={{
+          backgroundColor: colors.accentBg,
+          borderColor: colors.border,
+        }}
+      >
+        <Icon aria-hidden="true" size={18} color={colors.accent} strokeWidth={2.4} />
+      </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         type={type}
         placeholder={placeholder}
         className="ml-3 min-w-0 flex-1 bg-transparent text-base font-semibold text-text outline-none placeholder:text-placeholder"
-        style={{ letterSpacing: -0.31 }}
       />
     </label>
   )
@@ -62,18 +67,20 @@ function AuthSelect({
   value: string
   onChange: (value: string) => void
   placeholder: string
-  Icon: typeof Mail
-  children: React.ReactNode
+  Icon: LucideIcon
+  children: ReactNode
 }) {
   return (
-    <label
-      className="flex h-14 items-center px-4"
-      style={{
-        backgroundColor: colors.bg,
-        borderRadius: radii.compact,
-      }}
-    >
-      <Icon aria-hidden="true" size={20} color={colors.placeholder} />
+    <label className="flex h-14 items-center px-4" style={fieldStyle()}>
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+        style={{
+          backgroundColor: colors.accentBg,
+          borderColor: colors.border,
+        }}
+      >
+        <Icon aria-hidden="true" size={18} color={colors.accent} strokeWidth={2.4} />
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -87,38 +94,6 @@ function AuthSelect({
   )
 }
 
-function saveKakaoProfile(profile: { email: string; gender: number; age: number }) {
-  sessionStorage.setItem(kakaoProfileStorageKey, JSON.stringify(profile))
-}
-
-function consumeKakaoProfile() {
-  const rawProfile = sessionStorage.getItem(kakaoProfileStorageKey)
-  sessionStorage.removeItem(kakaoProfileStorageKey)
-  if (!rawProfile) {
-    throw new Error('카카오 로그인에 필요한 추가 정보를 다시 입력해 주세요.')
-  }
-
-  const profile = JSON.parse(rawProfile) as {
-    email?: unknown
-    gender?: unknown
-    age?: unknown
-  }
-
-  if (
-    typeof profile.email !== 'string' ||
-    typeof profile.gender !== 'number' ||
-    typeof profile.age !== 'number'
-  ) {
-    throw new Error('카카오 로그인 추가 정보가 올바르지 않습니다.')
-  }
-
-  return {
-    email: profile.email,
-    gender: profile.gender,
-    age: profile.age,
-  }
-}
-
 export function LoginScreen() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -126,13 +101,14 @@ export function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isKakaoSubmitting, setIsKakaoSubmitting] = useState(false)
+  const [pendingKakaoCode, setPendingKakaoCode] = useState<string | null>(null)
   const [kakaoEmail, setKakaoEmail] = useState('')
   const [kakaoGender, setKakaoGender] = useState('')
   const [kakaoAge, setKakaoAge] = useState('')
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0
   const kakaoAgeNumber = Number(kakaoAge)
-  const canSubmitKakao =
+  const canSubmitKakaoProfile =
     kakaoEmail.trim().length > 0 &&
     kakaoGender.length > 0 &&
     Number.isInteger(kakaoAgeNumber) &&
@@ -149,36 +125,23 @@ export function LoginScreen() {
     navigate('/home')
   }
 
+  const submitOnEnter = (
+    event: KeyboardEvent<HTMLFormElement>,
+    submit: () => void | Promise<void>,
+  ) => {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+
+    event.preventDefault()
+    void submit()
+  }
+
   useEffect(() => {
     const code = consumeKakaoCode()
     if (!code) return
 
     setErrorMessage('')
-    setIsKakaoSubmitting(true)
-    let kakaoProfile: ReturnType<typeof consumeKakaoProfile>
-    try {
-      kakaoProfile = consumeKakaoProfile()
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : '카카오 로그인 추가 정보를 다시 입력해 주세요.',
-      )
-      setIsKakaoSubmitting(false)
-      return
-    }
-
-    void loginWithKakaoCode(code, getKakaoRedirectUri(), kakaoProfile)
-      .then(navigateAfterLogin)
-      .catch((error) => {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
-        )
-      })
-      .finally(() => setIsKakaoSubmitting(false))
-  }, [navigate])
+    setPendingKakaoCode(code)
+  }, [])
 
   const submitLogin = async () => {
     if (!canSubmit || isSubmitting) return
@@ -200,16 +163,11 @@ export function LoginScreen() {
   }
 
   const submitKakaoLogin = async () => {
-    if (!canSubmitKakao || isKakaoSubmitting) return
+    if (isKakaoSubmitting) return
 
     setErrorMessage('')
     setIsKakaoSubmitting(true)
     try {
-      saveKakaoProfile({
-        email: kakaoEmail.trim(),
-        gender: Number(kakaoGender),
-        age: kakaoAgeNumber,
-      })
       await authorizeWithKakao()
     } catch (error) {
       setErrorMessage(
@@ -217,11 +175,31 @@ export function LoginScreen() {
           ? error.message
           : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
       )
-      sessionStorage.removeItem(kakaoProfileStorageKey)
+      setIsKakaoSubmitting(false)
+    }
+  }
+
+  const submitKakaoProfile = async () => {
+    if (!pendingKakaoCode || !canSubmitKakaoProfile || isKakaoSubmitting) return
+
+    setErrorMessage('')
+    setIsKakaoSubmitting(true)
+    try {
+      await loginWithKakaoCode(pendingKakaoCode, getKakaoRedirectUri(), {
+        email: kakaoEmail.trim(),
+        gender: Number(kakaoGender),
+        age: kakaoAgeNumber,
+      })
+      setPendingKakaoCode(null)
+      navigateAfterLogin()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '카카오 로그인에 실패했어요. 다시 시도해 주세요.',
+      )
     } finally {
-      if (!window.location.search.includes('code=')) {
-        setIsKakaoSubmitting(false)
-      }
+      setIsKakaoSubmitting(false)
     }
   }
 
@@ -245,7 +223,12 @@ export function LoginScreen() {
           <p className="mt-3 text-[15px] font-semibold leading-[1.5] text-sub">
             친구의 자존심을 지키는 익명 예산 조율
           </p>
-          <div
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submitLogin()
+            }}
+            onKeyDown={(event) => submitOnEnter(event, submitLogin)}
             className="mt-[34px] p-4"
             style={softBox({ radius: radii.card })}
           >
@@ -256,7 +239,7 @@ export function LoginScreen() {
               onChange={setEmail}
               placeholder="이메일"
               type="email"
-              Icon={Mail}
+              Icon={AtSign}
             />
             <div className="h-2.5" />
             <AuthTextField
@@ -264,9 +247,9 @@ export function LoginScreen() {
               onChange={setPassword}
               placeholder="비밀번호"
               type="password"
-              Icon={Lock}
+              Icon={KeyRound}
             />
-            {errorMessage && (
+            {errorMessage && !pendingKakaoCode && (
               <p className="mt-2 text-[12px] font-semibold leading-[1.4] text-danger">
                 {errorMessage}
               </p>
@@ -277,50 +260,13 @@ export function LoginScreen() {
               onTap={submitLogin}
               enabled={canSubmit && !isSubmitting}
             />
-          </div>
+          </form>
         </section>
-        <section className="mt-8">
-          <div
-            className="mb-4 p-4"
-            style={softBox({ radius: radii.card })}
-          >
-            <h2 className="text-[15px] font-extrabold text-text">카카오 로그인 정보</h2>
-            <div className="h-3" />
-            <AuthTextField
-              value={kakaoEmail}
-              onChange={setKakaoEmail}
-              placeholder="이메일"
-              type="email"
-              Icon={Mail}
-            />
-            <div className="h-2.5" />
-            <AuthSelect
-              value={kakaoGender}
-              onChange={setKakaoGender}
-              placeholder="성별"
-              Icon={Users}
-            >
-              <option value="0">남성</option>
-              <option value="1">여성</option>
-            </AuthSelect>
-            <div className="h-2.5" />
-            <AuthTextField
-              value={kakaoAge}
-              onChange={(value) => setKakaoAge(value.replace(/\D/g, '').slice(0, 3))}
-              placeholder="나이"
-              type="text"
-              Icon={Cake}
-            />
-            {errorMessage && (
-              <p className="mt-2 text-[12px] font-semibold leading-[1.4] text-danger">
-                {errorMessage}
-              </p>
-            )}
-          </div>
+        <section className="mt-auto pt-8">
           <button
             type="button"
             onClick={submitKakaoLogin}
-            disabled={!canSubmitKakao || isKakaoSubmitting}
+            disabled={isKakaoSubmitting}
             className="flex h-14 w-full items-center justify-center rounded-card bg-kakaoYellow text-base font-bold text-text disabled:cursor-default disabled:opacity-70"
           >
             {isKakaoSubmitting ? '카카오 로그인 중' : '카카오로 시작하기'}
@@ -333,6 +279,77 @@ export function LoginScreen() {
             아직 계정이 없나요? 회원가입
           </button>
         </section>
+
+        {pendingKakaoCode && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-6">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                void submitKakaoProfile()
+              }}
+              onKeyDown={(event) => submitOnEnter(event, submitKakaoProfile)}
+              className="w-full max-w-[360px] p-5"
+              style={softBox({ radius: radii.card })}
+            >
+              <h2 className="text-lg font-extrabold text-text">
+                카카오 로그인 정보
+              </h2>
+              <p className="mt-1.5 text-[13px] font-semibold leading-[1.45] text-sub">
+                추천 정확도를 위해 선택 정보를 입력해 주세요.
+              </p>
+              <div className="mt-4 space-y-2.5">
+                <AuthTextField
+                  value={kakaoEmail}
+                  onChange={setKakaoEmail}
+                  placeholder="이메일"
+                  type="email"
+                  Icon={AtSign}
+                />
+                <AuthSelect
+                  value={kakaoGender}
+                  onChange={setKakaoGender}
+                  placeholder="성별"
+                  Icon={Users}
+                >
+                  <option value="1">남성</option>
+                  <option value="2">여성</option>
+                </AuthSelect>
+                <AuthTextField
+                  value={kakaoAge}
+                  onChange={(value) => setKakaoAge(value.replace(/\D/g, '').slice(0, 3))}
+                  placeholder="나이"
+                  type="text"
+                  Icon={Cake}
+                />
+              </div>
+              {errorMessage && (
+                <p className="mt-3 text-[12px] font-semibold leading-[1.4] text-danger">
+                  {errorMessage}
+                </p>
+              )}
+              <div className="mt-5 flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingKakaoCode(null)
+                    setIsKakaoSubmitting(false)
+                    setErrorMessage('')
+                  }}
+                  className="h-[46px] flex-1 rounded-compact border border-border bg-bg text-sm font-extrabold text-sub"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmitKakaoProfile || isKakaoSubmitting}
+                  className="h-[46px] flex-1 rounded-compact bg-accent text-sm font-extrabold text-white disabled:cursor-default disabled:opacity-60"
+                >
+                  {isKakaoSubmitting ? '저장 중' : '완료'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </main>
     </PhoneFrame>
   )

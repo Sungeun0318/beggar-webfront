@@ -12,7 +12,7 @@ type SignupRequest = {
   email: string
   password: string
   nickname: string
-  ageRange: string
+  age: number
   gender?: number
 }
 
@@ -234,7 +234,7 @@ export async function signup(request: SignupRequest): Promise<void> {
     email: request.email,
     password: request.password,
     userName: request.nickname,
-    ageRange: request.ageRange,
+    age: request.age,
     gender: request.gender,
   })
 }
