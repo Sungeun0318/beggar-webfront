@@ -2,7 +2,7 @@ type KakaoSdk = {
   isInitialized: () => boolean
   init: (appKey: string) => void
   Auth: {
-    authorize: (options: { redirectUri: string }) => void
+    authorize: (options: { redirectUri: string; scope?: string }) => void
   }
   Share: {
     sendDefault: (options: any) => void
@@ -82,6 +82,7 @@ export async function authorizeWithKakao() {
 
   kakao.Auth.authorize({
     redirectUri: getKakaoRedirectUri(),
+    scope: 'profile_nickname',
   })
 }
 
