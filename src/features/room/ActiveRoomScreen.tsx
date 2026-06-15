@@ -144,12 +144,19 @@ export function ActiveRoomScreen() {
     if (!room || room.status === 'ENDED') {
       return
     }
+    if (receiptList.length === 0 && splitGroups.length === 0) {
+      setCourseRecommendedPlaces([])
+      setCourseRecommendationLoading(false)
+      setCourseRecommendationError(null)
+      return
+    }
 
     setCourseRecommendationLoading(true)
     setCourseRecommendationError(null)
     getRecommendation(roomNo, {
       tag: selectedTag,
       region: room.location,
+      strictBudget: true,
     })
       .then((result) => {
         setCourseRecommendedPlaces(result.places.slice(0, 3))
@@ -160,7 +167,7 @@ export function ActiveRoomScreen() {
         setCourseRecommendationError('추천을 불러오지 못했어요.')
       })
       .finally(() => setCourseRecommendationLoading(false))
-  }, [room, roomNo, selectedTag])
+  }, [room, roomNo, selectedTag, receiptList.length, splitGroups.length])
 
   if (loading) {
     return (
@@ -177,8 +184,8 @@ export function ActiveRoomScreen() {
   const total = displayBudget.totalBudget
   const spent = receiptList.reduce((sum, r) => sum + (r.amount || (r as any).totalAmount || 0), 0)
   const remaining = total - spent
-  const roomTags = displayRoom.tags.length > 0 ? displayRoom.tags : fallbackTags
-  const openRecommendation = () => navigate(`/recommend?roomNo=${roomNo}`)
+  const openRecommendation = (tag = selectedTag) =>
+    navigate(`/recommend?roomNo=${roomNo}&tag=${encodeURIComponent(tag)}`)
   const groupedReceiptIds = new Set(
     splitGroups.flatMap(group => group.items.map(item => item.receiptId)),
   )
@@ -198,6 +205,10 @@ export function ActiveRoomScreen() {
     const dateB = new Date(b.createdAt || (b as any).date || 0).getTime()
     return dateB - dateA
   })
+  const hasReceiptTimeline = allTimelineItems.length > 0
+  const budgetSafeCoursePlaces = courseRecommendedPlaces.filter(
+    (place) => place.expectedPrice == null || place.expectedPrice <= Math.max(remaining, 0),
+  )
 
   const handleCloseRoom = async () => {
     if (!window.confirm('정말로 방을 종료하시겠습니까?\n종료 후에는 영수증 등록 및 추천 서비스를 이용할 수 없습니다.')) {
@@ -315,7 +326,7 @@ export function ActiveRoomScreen() {
           ) : initialRecommendationError ? (
             <button
               type="button"
-              onClick={openRecommendation}
+              onClick={() => openRecommendation(room?.tags[0] || fallbackTags[0])}
               className="flex h-[96px] w-full items-center justify-center rounded-card border border-border bg-white px-4 text-sm font-bold text-sub"
             >
               {initialRecommendationError}
@@ -334,14 +345,14 @@ export function ActiveRoomScreen() {
                   amount={placeAmount(place)}
                   tagBg={tag.bg}
                   tagColor={tag.fg}
-                  onMapTap={openRecommendation}
+                  onMapTap={() => openRecommendation(room?.tags[0] || fallbackTags[0])}
                 />
               )
             })
           ) : (
             <button
               type="button"
-              onClick={openRecommendation}
+              onClick={() => openRecommendation(room?.tags[0] || fallbackTags[0])}
               className="flex h-[96px] w-full items-center justify-center rounded-card border border-border bg-white px-4 text-sm font-bold text-sub"
             >
               조건에 맞는 추천을 다시 찾아볼게요.
@@ -444,114 +455,127 @@ export function ActiveRoomScreen() {
             )}
           </div>
           <div className="h-6" />
-          <section
-            className="p-[18px]"
-            style={softBox({ radius: radii.card, shadow: true })}
-          >
-            <h2
-              className="text-[19px] font-black text-text"
-              style={{ letterSpacing: -0.5 }}
-            >
-              다음 코스 고르기
-            </h2>
-            <p
-              className="mt-1 text-[13px] font-semibold leading-[1.45] text-sub"
-              style={{ letterSpacing: -0.23 }}
-            >
-              {displayRoom.status === 'ENDED'
-                ? '종료된 방은 새로운 추천을 받을 수 없어요.'
-                : '태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.'}
-            </p>
-            <div className="h-4" />
-            <div className="flex flex-wrap gap-2">
-              {roomTags.map((tag) => {
-                const selected = selectedTag === tag
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSelectedTag(tag)}
-                    className={`flex h-[38px] items-center justify-center rounded-chip border px-4 text-[13px] font-extrabold ${
-                      tag === '기타 요식업' ? 'w-[142px]' : 'w-[78px]'
-                    }`}
-                    style={{
-                      backgroundColor: selected ? '#FFE7B8' : '#FFFFFF',
-                      borderColor: selected ? '#5E4B24' : colors.border,
-                      color: selected ? colors.text : colors.sub,
-                    }}
-                  >
-                    {selected && <Check aria-hidden="true" size={16} />}
-                    <span className={selected ? 'ml-[5px]' : undefined}>
-                      {tag}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="h-[18px]" />
-            <div className="flex items-center">
-              <h3 className="text-base font-black text-text">{selectedTag} 추천</h3>
-              <div className="flex-1" />
-              <span className="text-xs font-bold text-lightSub">
-                남은 예산 기준
-              </span>
-            </div>
-            <div className="h-2.5" />
-            <div className="space-y-2.5">
-              {courseRecommendationLoading ? (
-                <div className="flex h-[118px] items-center justify-center rounded-card border border-border bg-accentBg">
-                  <Loader2 className="animate-spin" size={26} color={colors.accent} />
+          {hasReceiptTimeline && (
+            <>
+              <section
+                className="p-[18px]"
+                style={softBox({ radius: radii.card, shadow: true })}
+              >
+                <h2
+                  className="text-[19px] font-black text-text"
+                  style={{ letterSpacing: -0.5 }}
+                >
+                  다음 코스 고르기
+                </h2>
+                <p
+                  className="mt-1 text-[13px] font-semibold leading-[1.45] text-sub"
+                  style={{ letterSpacing: -0.23 }}
+                >
+                  {displayRoom.status === 'ENDED'
+                    ? '종료된 방은 새로운 추천을 받을 수 없어요.'
+                    : '태그를 바꾸면 남은 예산에 맞춰 추천이 다시 나와요.'}
+                </p>
+                <div className="h-4" />
+                <div className="flex flex-wrap gap-2">
+                  {fallbackTags.map((tag) => {
+                    const selected = selectedTag === tag
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSelectedTag(tag)}
+                        className={`flex h-[38px] items-center justify-center rounded-chip border px-4 text-[13px] font-extrabold ${
+                          tag === '기타 요식업' ? 'w-[142px]' : 'w-[78px]'
+                        }`}
+                        style={{
+                          backgroundColor: selected ? '#FFE7B8' : '#FFFFFF',
+                          borderColor: selected ? '#5E4B24' : colors.border,
+                          color: selected ? colors.text : colors.sub,
+                        }}
+                      >
+                        {selected && <Check aria-hidden="true" size={16} />}
+                        <span className={selected ? 'ml-[5px]' : undefined}>
+                          {tag}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
-              ) : courseRecommendationError ? (
-                <button
-                  type="button"
-                  onClick={openRecommendation}
-                  className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
-                >
-                  {courseRecommendationError}
-                </button>
-              ) : courseRecommendedPlaces.slice(0, 2).map((place) => (
-                <button
-                  key={place.storeId ?? place.name}
-                  type="button"
-                  onClick={openRecommendation}
-                  className="flex h-[118px] w-full items-center rounded-card border border-border bg-accentBg p-3.5 text-left"
-                >
-                  <img
-                    src={place.thumbnailUrl}
-                    alt=""
-                    className="h-[58px] w-[58px] shrink-0 rounded-compact object-cover"
-                  />
-                  <div className="w-[13px]" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-black text-accent">
-                      착한가격 업소
-                    </p>
-                    <p className="mt-1 truncate text-[17px] font-black text-text">
-                      {place.name}
-                    </p>
-                    <p className="mt-[5px] truncate text-xs font-bold text-sub">
-                      {place.walkTime ?? '도보 정보 없음'} · {placeAmount(place)}
-                    </p>
-                    <p className="mt-1 text-xs font-extrabold text-darkSub">
-                      남은 예산 {money(Math.max(remaining, 0))}원 기준
-                    </p>
-                  </div>
-                  <ChevronRight aria-hidden="true" color={colors.brown} />
-                </button>
-              ))}
-              {!courseRecommendationLoading && !courseRecommendationError && courseRecommendedPlaces.length <= 2 && (
-                <button
-                  type="button"
-                  onClick={openRecommendation}
-                  className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
-                >
-                  더 많은 추천 보러가기
-                </button>
-              )}
-            </div>
-          </section>
-          <div className="h-5" />
+                <div className="h-[18px]" />
+                <div className="flex items-center">
+                  <h3 className="text-base font-black text-text">{selectedTag} 추천</h3>
+                  <div className="flex-1" />
+                  <span className="text-xs font-bold text-lightSub">
+                    남은 예산 기준
+                  </span>
+                </div>
+                <div className="h-2.5" />
+                <div className="space-y-2.5">
+                  {courseRecommendationLoading ? (
+                    <div className="flex h-[118px] items-center justify-center rounded-card border border-border bg-accentBg">
+                      <Loader2 className="animate-spin" size={26} color={colors.accent} />
+                    </div>
+                  ) : courseRecommendationError ? (
+                    <button
+                      type="button"
+                      onClick={() => openRecommendation()}
+                      className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
+                    >
+                      {courseRecommendationError}
+                    </button>
+                  ) : budgetSafeCoursePlaces.length === 0 ? (
+                    <div className="flex min-h-[86px] w-full flex-col items-center justify-center rounded-card border border-border bg-accentBg px-4 py-4 text-center">
+                      <p className="text-sm font-black text-text">
+                        남은 예산에 맞는 추천이 없어요.
+                      </p>
+                      <p className="mt-1 text-xs font-semibold leading-[1.45] text-sub">
+                        다른 태그를 선택하거나 예산을 다시 확인해보세요.
+                      </p>
+                    </div>
+                  ) : budgetSafeCoursePlaces.slice(0, 2).map((place) => (
+                    <button
+                      key={place.storeId ?? place.name}
+                      type="button"
+                      onClick={() => openRecommendation()}
+                      className="flex h-[118px] w-full items-center rounded-card border border-border bg-accentBg p-3.5 text-left"
+                    >
+                      <img
+                        src={place.thumbnailUrl}
+                        alt=""
+                        className="h-[58px] w-[58px] shrink-0 rounded-compact object-cover"
+                      />
+                      <div className="w-[13px]" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black text-accent">
+                          착한가격 업소
+                        </p>
+                        <p className="mt-1 truncate text-[17px] font-black text-text">
+                          {place.name}
+                        </p>
+                        <p className="mt-[5px] truncate text-xs font-bold text-sub">
+                          {place.walkTime ?? '도보 정보 없음'} · {placeAmount(place)}
+                        </p>
+                        <p className="mt-1 text-xs font-extrabold text-darkSub">
+                          남은 예산 {money(Math.max(remaining, 0))}원 기준
+                        </p>
+                      </div>
+                      <ChevronRight aria-hidden="true" color={colors.brown} />
+                    </button>
+                  ))}
+                  {!courseRecommendationLoading && !courseRecommendationError && budgetSafeCoursePlaces.length > 0 && budgetSafeCoursePlaces.length <= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => openRecommendation()}
+                      className="flex h-[76px] w-full items-center justify-center rounded-card border border-border bg-accentBg px-4 text-sm font-bold text-sub"
+                    >
+                      더 많은 추천 보러가기
+                    </button>
+                  )}
+                </div>
+              </section>
+              <div className="h-5" />
+            </>
+          )}
           {isOwner && displayRoom.status !== 'ENDED' && (
             <button
               type="button"

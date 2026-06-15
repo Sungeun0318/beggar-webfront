@@ -8,6 +8,7 @@ type RecommendParams = {
   lat?: number
   lng?: number
   radius?: number
+  strictBudget?: boolean
 }
 
 export async function getRecommendation(

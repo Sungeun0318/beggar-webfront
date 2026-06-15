@@ -37,11 +37,13 @@ function placeAmount(place: RecommendedPlace) {
 }
 
 const nearbyRadius = 5000
+const recommendationTags = ["한식", "양식", "일식", "중식", "기타 요식업"]
 
 export function RecommendationScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const roomNo = Number(searchParams.get("roomNo")) || 1
+  const initialTag = searchParams.get("tag") ?? ""
 
   const [room, setRoom] = useState<Room | null>(null)
   const [selectedTag, setSelectedTag] = useState("")
@@ -67,7 +69,7 @@ export function RecommendationScreen() {
           return
         }
         setRoom(roomData)
-        setSelectedTag(roomData.tags[0] || "")
+        setSelectedTag(initialTag || roomData.tags[0] || recommendationTags[0])
         setSelectedRegion(roomData.location || "")
         setSelectedRegionQuery(null)
         setSelectedLat(null)
@@ -78,7 +80,7 @@ export function RecommendationScreen() {
         setRecommendationError("방 정보를 불러오지 못했어요.")
         setLoading(false)
       })
-  }, [roomNo])
+  }, [roomNo, initialTag])
 
   useEffect(() => {
     if (!room) {
@@ -131,11 +133,11 @@ export function RecommendationScreen() {
           <div className="h-2.5" />
           <SummaryRow Icon={WalletCards} label={budgetLabel} bg="#F4F6FF" />
           
-          {room && room.tags.length > 0 && (
+          {room && (
             <>
               <div className="h-4" />
               <div className="flex flex-wrap gap-2">
-                {room.tags.map((tag) => {
+                {recommendationTags.map((tag) => {
                   const selected = selectedTag === tag
                   return (
                     <button
