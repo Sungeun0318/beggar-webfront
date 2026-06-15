@@ -284,7 +284,6 @@ export async function updateNickname(userName: string): Promise<User> {
 
   await client.patch<ApiResponse<void>>("/users/me", {
     userName: nextUserName,
-    profileImageUrl: user.profileImageUrl ?? null,
   })
 
   return getCurrentUser()
