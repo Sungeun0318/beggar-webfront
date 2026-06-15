@@ -11,6 +11,16 @@ type RecommendParams = {
   strictBudget?: boolean
 }
 
+type RecommendationInteractionRequest = {
+  storeId?: string | null
+  storeName: string
+  action?: 'CLICK'
+  requestedTag?: string | null
+  requestedRegion?: string | null
+  rankPosition?: number
+  expectedPrice?: number | null
+}
+
 export async function getRecommendation(
   roomNo: number,
   params: RecommendParams = {},
@@ -25,6 +35,23 @@ export async function getRecommendation(
   return client.get<RecommendationResult>(
     `/rooms/${roomNo}/recommend`,
     params,
+    { Authorization: `Bearer ${token}` },
+  )
+}
+
+export async function trackRecommendationInteraction(
+  roomNo: number,
+  body: RecommendationInteractionRequest,
+): Promise<void> {
+  if (MOCK.recommend) {
+    return
+  }
+
+  const token = localStorage.getItem('accessToken')
+  await client.post<{ recorded: boolean }>(
+    `/rooms/${roomNo}/recommend/interactions`,
+    body,
+    undefined,
     { Authorization: `Bearer ${token}` },
   )
 }

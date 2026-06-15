@@ -8,7 +8,7 @@ import { PrimaryButton } from "../../components/PrimaryButton"
 import { RecommendationCard } from "../../components/RecommendationCard"
 import { SummaryRow } from "../../components/SummaryRow"
 import { softBox } from "../../components/ui/softBox"
-import { getRecommendation } from "../../lib/api/recommendation"
+import { getRecommendation, trackRecommendationInteraction } from "../../lib/api/recommendation"
 import { searchLocations } from "../../lib/api/locations"
 import { getRoom } from "../../lib/api/rooms"
 import { money } from "../../lib/format"
@@ -113,6 +113,21 @@ export function RecommendationScreen() {
       ? "전체 예산 기준 추천"
       : `1인 추천 예산 ${money(recommendationBudget)}원`
 
+  const handlePlaceTap = (place: RecommendedPlace, rankPosition: number) => {
+    setSelectedPlace(place)
+    trackRecommendationInteraction(roomNo, {
+      storeId: place.storeId,
+      storeName: place.name,
+      action: "CLICK",
+      requestedTag: result?.requestedTag ?? selectedTag,
+      requestedRegion: result?.requestedRegion ?? selectedRegion,
+      rankPosition,
+      expectedPrice: place.expectedPrice,
+    }).catch((error) => {
+      console.error("추천 클릭 기록에 실패했어요.", error)
+    })
+  }
+
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
@@ -183,7 +198,7 @@ export function RecommendationScreen() {
               <Loader2 className="animate-spin text-accent" size={32} />
             </div>
           ) : (
-            (result?.places ?? []).map((place) => {
+            (result?.places ?? []).map((place, index) => {
               const tag = tagColors(place.category)
               return (
                 <div key={place.storeId ?? place.name} className="mb-3.5">
@@ -198,7 +213,7 @@ export function RecommendationScreen() {
                     amount={placeAmount(place)}
                     tagBg={tag.bg}
                     tagColor={tag.fg}
-                    onMapTap={() => setSelectedPlace(place)}
+                    onMapTap={() => handlePlaceTap(place, index + 1)}
                   />
                 </div>
               )
