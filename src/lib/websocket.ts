@@ -2,8 +2,8 @@ import { Client, type IFrame, type IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const DEFAULT_SOCKET_URL = `${API_BASE_URL}/ws-stomp`;
-const COMMUNITY_SOCKET_URL = `${API_BASE_URL}/ws-community`;
+const DEFAULT_SOCKET_URL = `${API_BASE_URL}/ws-stomp`;          // room에서 사용하는 WebSocket URL
+const COMMUNITY_SOCKET_URL = `${API_BASE_URL}/ws-community`;    // community(전체 채팅)에서 사용하는 WebSocket URL
 
 export class WebSocketClient {
   private client: Client;
