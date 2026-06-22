@@ -6,7 +6,7 @@ import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { softBox } from '../../components/ui/softBox'
 import { getChats, sendChat } from '../../lib/api/community'
-import { wsClient } from '../../lib/websocket'
+import { communityWsClient } from '../../lib/websocket'
 import { colors, radii } from '../../theme/tokens'
 import type { RoomFreeChat } from '../../types'
 
@@ -94,10 +94,10 @@ export function CommunityChatScreen() {
     let subscription: { unsubscribe: () => void } | undefined
 
     // WebSocket 연결 및 구독
-    wsClient.connect(() => {
+    communityWsClient.connect(() => {
       console.log('커뮤니티 채팅 웹소켓 연결 성공')
-      
-      subscription = wsClient.subscribe('/sub/chats', (msg) => {
+
+      subscription = communityWsClient.subscribe('/sub/chats', (msg) => {
         try {
           const receivedChat = JSON.parse(msg.body)
           
