@@ -220,8 +220,14 @@ export async function startRoulette(no: number): Promise<RouletteResult> {
     }
   }
 
-  const response = await client.post<ApiResponse<RouletteResult>>(`/rooms/${no}/roulette`, {})
-  return response.data
+  const response = await client.post<ApiResponse<RouletteResult> | RouletteResult>(`/rooms/${no}/roulette`, {})
+  const data = 'data' in response ? response.data : response
+
+  if (!data) {
+    throw new Error('룰렛 결과가 비어 있습니다.')
+  }
+
+  return data
 }
 
 /**
