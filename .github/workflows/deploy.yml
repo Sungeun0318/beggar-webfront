@@ -2,7 +2,7 @@ name: React Client Deploy to S3   # [필수] GitHub Actions 이름 (가독성 �
 
 on:                                               # [필수] 언제 실행할지 정의
   push:                                           # [필수] push 이벤트 기반 실행
-    branches: [ "feat/connect-deployed-backend" ] # [필수] feat/connect-deployed-backend 브랜치에 push될 때만 실행됨
+    branches: [ "feat/connect-deployed-backend", "main" ] # feat/connect-deployed-backend 및 main 브랜치에 push될 때 실행됨
 
 jobs:                             # [필수] 작업(Job) 집합 정의
   build-and-deploy:               # [필수] Job 이름
@@ -17,10 +17,10 @@ jobs:                             # [필수] 작업(Job) 집합 정의
       - name: Set up Node.js                    # [필수] Node.js 설치
         uses: actions/setup-node@v3             # [필수] 노드 설정 액션
         with:
-          node-version: '20'                    # [필수] 프로젝트 Node.js 버전 정의
+          node-version: '20'                    # [필수] 프로젝트 Node.js버전 정의
 
       # 3. 배포 환경 파일 생성
-      - name: Create .env file                  # [필수] 배포 환경 환경변수 파일 생성 
+      - name: Create .env file                  # [필수] 배포환경 환경변수 파일 생성 
         run: |
           echo "VITE_API_BASE_URL=${{ secrets.API_BASE_URL }}" >> .env
           echo "VITE_KAKAO_JS_KEY=${{ secrets.VITE_KAKAO_JS_KEY }}" >> .env
@@ -31,6 +31,9 @@ jobs:                             # [필수] 작업(Job) 집합 정의
         run: |
           npm install
           npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          VITE_KAKAO_JS_KEY: ${{ secrets.VITE_KAKAO_JS_KEY }}
         shell: bash                             # [필수] bash 쉘 사용
 
       # 5. AWS 자격 증명 설정
@@ -45,3 +48,11 @@ jobs:                             # [필수] 작업(Job) 집합 정의
       - name: Deploy to S3                                            # [필수] S3 버킷으로 배포하는 단계
         run: aws s3 sync ./dist s3://${{ secrets.AWS_S3_BUCKET }} --delete
         shell: bash                                                   # [필수] bash 쉘 사용
+
+      # 7. CloudFront 캐시 무효화
+      #    S3에만 올리면 CloudFront가 옛 index.html/번들을 계속 내려보내
+      #    사용자에게 새 배포가 전파되지 않음. 매 배포마다 캐시를 비운다.
+      #    ※ 이 단계는 IAM 사용자에 cloudfront:CreateInvalidation 권한이 필요함.
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id E3H6ATPGTFHM8O --paths "/*"
+        shell: bash
