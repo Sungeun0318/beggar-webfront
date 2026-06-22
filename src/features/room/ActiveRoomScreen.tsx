@@ -586,8 +586,17 @@ export function ActiveRoomScreen() {
             </button>
           )}
           {displayRoom.status === 'ENDED' && (
-            <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-gray-100 text-sm font-bold text-gray-400">
-              종료된 방입니다
+            <div className="space-y-3">
+              <button
+                type="button"
+                className="h-[52px] w-full rounded-compact bg-danger text-sm font-black text-white shadow-[0_8px_14px_rgba(217,115,76,0.22)]"
+                onClick={() => navigate(`/room/${roomNo}/roulette`)}
+              >
+                거지룰렛 돌리기
+              </button>
+              <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-gray-100 text-sm font-bold text-gray-400">
+                종료된 방입니다
+              </div>
             </div>
           )}
           <div className="h-7" />

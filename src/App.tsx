@@ -20,6 +20,7 @@ import { CreateRoomScreen } from './features/room/CreateRoomScreen'
 import { InviteRoomScreen } from './features/room/InviteRoomScreen'
 import { JoinRoomScreen } from './features/room/JoinRoomScreen'
 import { RoomRatingScreen } from './features/room/RoomRatingScreen'
+import { RouletteScreen } from './features/room/RouletteScreen'
 import { RoomSettingsScreen } from './features/room/RoomSettingsScreen'
 import { SplashScreen } from './features/splash/SplashScreen'
 
@@ -61,6 +62,7 @@ function App() {
         <Route path="/receipts" element={<ReceiptsScreen />} />
         <Route path="/room/:no/settings" element={<RoomSettingsScreen />} />
         <Route path="/room/:no/rating" element={<RoomRatingScreen />} />
+        <Route path="/room/:roomNo/roulette" element={<RouletteScreen />} />
         <Route path="/room/:no" element={<ActiveRoomScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
