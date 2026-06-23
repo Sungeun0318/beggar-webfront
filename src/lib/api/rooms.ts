@@ -1,5 +1,5 @@
 import { members, room } from '../../mocks'
-import type { Member, Room } from '../../types'
+import type { Member, Room, RouletteResult } from '../../types'
 import { client } from './client'
 import { MOCK } from './mockMode'
 
@@ -203,6 +203,25 @@ export async function startBudgetInput(no: number): Promise<void> {
 
   // 실제 경로: POST /rooms/{no}/budget/start
   await client.post(`/rooms/${no}/budget/start`, {})
+}
+
+export async function startRoulette(no: number): Promise<RouletteResult> {
+  if (MOCK.rooms) {
+    return {
+      roomId: no,
+      winnerUserNo: members[1]?.userNo || 2,
+      winnerNickname: members[1]?.name || '김민수',
+      remainingBudget: 24500,
+      allMembers: members.map((member, index) => ({
+        ...member,
+        userNo: member.userNo || index + 1,
+        budgetSubmitted: true,
+      })),
+    }
+  }
+
+  const response = await client.post<ApiResponse<RouletteResult>>(`/rooms/${no}/roulette`, {})
+  return response.data
 }
 
 /**

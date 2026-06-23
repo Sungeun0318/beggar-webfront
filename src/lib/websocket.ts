@@ -2,7 +2,8 @@ import { Client, type IFrame, type IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const SOCKET_URL = `${API_BASE_URL}/ws-stomp`;
+const DEFAULT_SOCKET_URL = `${API_BASE_URL}/ws-stomp`;          // room에서 사용하는 WebSocket URL
+const COMMUNITY_SOCKET_URL = `${API_BASE_URL}/ws-community`;    // community(전체 채팅)에서 사용하는 WebSocket URL
 
 export class WebSocketClient {
   private client: Client;
@@ -11,9 +12,12 @@ export class WebSocketClient {
   private resolvePromise: (() => void) | null = null;
   private rejectPromise: ((reason?: any) => void) | null = null;
 
-  constructor() {
+  private socketUrl: string;
+
+  constructor(socketUrl: string = DEFAULT_SOCKET_URL) {
+    this.socketUrl = socketUrl;
     this.client = new Client({
-      webSocketFactory: () => new SockJS(SOCKET_URL),
+      webSocketFactory: () => new SockJS(socketUrl),
       debug: (str) => {
         console.log(str);
       },
@@ -53,7 +57,7 @@ export class WebSocketClient {
         this.connected = false;
         this.connectionPromise = null;
         console.error("WebSocket connection error:", {
-          socketUrl: SOCKET_URL,
+          socketUrl: this.socketUrl,
           event,
         });
         this.handleError(event);
@@ -127,4 +131,8 @@ export class WebSocketClient {
   }
 }
 
+// room, budget 등 기존 기능이 공유하는 기본 연결 (/ws-stomp)
 export const wsClient = new WebSocketClient();
+
+// community(전체 채팅) 전용 연결 (/ws-community) - 위 연결과 물리적으로 분리됨
+export const communityWsClient = new WebSocketClient(COMMUNITY_SOCKET_URL);

@@ -51,6 +51,14 @@ export type Member = {
   budgetSubmitted?: boolean
 }
 
+export type RouletteResult = {
+  roomId: number
+  winnerUserNo: number
+  winnerNickname: string
+  remainingBudget: number
+  allMembers: Member[]
+}
+
 export type BudgetResult = {
   minBudgetPerPerson: number
   memberCount: number
