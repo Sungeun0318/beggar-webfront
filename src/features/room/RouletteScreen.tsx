@@ -14,7 +14,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppHeaderTitled } from '../../components/AppHeader'
 import { PhoneFrame } from '../../components/PhoneFrame'
 import { PrimaryButton } from '../../components/PrimaryButton'
-import { getRoom, getRoomMembers, startRoulette } from '../../lib/api/rooms'
+import { getRoom, getRoomMembers, getRouletteResult, startRoulette } from '../../lib/api/rooms'
 import { money } from '../../lib/format'
 import { members as mockMembers, room as mockRoom } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
@@ -131,7 +131,7 @@ function Wheel({
       <div className="absolute left-1/2 top-1/2 z-10 h-[116px] w-[116px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F7D86A] blur-2xl opacity-70" />
       <div className="absolute left-1/2 top-1/2 z-20 grid h-[88px] w-[88px] -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden rounded-full bg-white text-center text-white shadow-[0_0_24px_rgba(247,216,106,0.72),0_12px_22px_rgba(44,36,27,0.35)]">
         {spinning ? (
-          <RotateCw className="animate-spin" size={28} />
+          <RotateCw className="animate-spin text-[#A87812]" size={28} />
         ) : (
           <img
             src="/assets/images/figma/logo-yellow-ring.png"
@@ -188,27 +188,46 @@ export function RouletteScreen() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true
+
     async function fetchData() {
+      setLoading(true)
+      setError(null)
+
       try {
-        const [roomData, membersData] = await Promise.all([
+        const [roomData, membersData, rouletteResult] = await Promise.all([
           getRoom(roomNo).catch(() => mockRoom),
           getRoomMembers(roomNo).catch(() => mockMembers),
+          getRouletteResult(roomNo).catch(() => null),
         ])
+
+        if (!active) return
+
+        const normalizedMembers = membersData.length ? membersData : mockMembers
         setRoom(roomData)
-        setMemberList(membersData.length ? membersData : mockMembers)
+        setResult(rouletteResult)
+        setMemberList(
+          rouletteResult?.allMembers?.length ? rouletteResult.allMembers : normalizedMembers,
+        )
       } finally {
-        setLoading(false)
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
     fetchData()
+
+    return () => {
+      active = false
+    }
   }, [roomNo])
 
   const displayRoom = room || mockRoom
   const userNo = Number(localStorage.getItem('userNo'))
   const isOwner =
     userNo === displayRoom.ownerNo ||
-    memberList.some(member => member.mine && (!member.userNo || member.userNo === displayRoom.ownerNo))
+    memberList.some(member => member.mine && member.userNo === displayRoom.ownerNo)
   const remainingBudget = result?.remainingBudget ?? Math.max((displayRoom.budget || 60000) - (displayRoom.spent || 35500), 0)
   const wheelMembers = useMemo(
     () => (result?.allMembers?.length ? result.allMembers : memberList),
@@ -221,11 +240,14 @@ export function RouletteScreen() {
 
     setError(null)
     setSpinning(true)
+
     try {
       const rouletteResult = await startRoulette(roomNo)
       window.setTimeout(() => {
         setResult(rouletteResult)
-        setMemberList(rouletteResult.allMembers)
+        if (rouletteResult.allMembers?.length) {
+          setMemberList(rouletteResult.allMembers)
+        }
         setSpinning(false)
       }, 900)
     } catch (err: any) {
@@ -260,15 +282,15 @@ export function RouletteScreen() {
   return (
     <PhoneFrame>
       <main className="relative min-h-[852px] bg-bg">
-        <AppHeaderTitled title="거지룰렛" onBack={() => navigate(`/room/${roomNo}`)} />
+        <AppHeaderTitled title="거지 룰렛" onBack={() => navigate(`/room/${roomNo}`)} />
         <section className="px-pageH pb-10 pt-2">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[21px] font-black text-text">{displayRoom.name}</p>
-              <p className="mt-1 text-xs font-bold text-sub">정산 종료 · 룰렛 가능</p>
+              <p className="mt-1 text-xs font-bold text-sub">정산 종료 · 룰렛 결과</p>
             </div>
             <div className="shrink-0 rounded-full bg-[#FFF1EA] px-3 py-2 text-[12px] font-black text-danger">
-              {isOwner ? '방장 권한' : '관전 모드'}
+              {isOwner ? '방장 권한' : '결과 확인'}
             </div>
           </div>
 
@@ -286,7 +308,13 @@ export function RouletteScreen() {
               <Wheel members={wheelMembers} spinning={spinning} result={result} />
             </div>
             <p className="mt-5 text-center text-[13px] font-bold text-sub">
-              {spinning ? '거지 선정 중...' : result ? '룰렛이 멈췄어요' : '포인터가 가리키는 멤버가 남은 예산을 가져갑니다'}
+              {spinning
+                ? '거지 선정 중...'
+                : result
+                  ? '룰렛 결과가 확정됐어요'
+                  : isOwner
+                    ? '룰렛은 한 번만 돌릴 수 있어요'
+                    : '방장이 룰렛을 돌리면 결과를 확인할 수 있어요'}
             </p>
           </div>
 
@@ -339,7 +367,15 @@ export function RouletteScreen() {
 
           <div className="mt-6">
             <PrimaryButton
-              label={spinning ? '룰렛 돌리는 중' : result ? '룰렛 완료' : isOwner ? '룰렛 돌리기' : '방장만 룰렛을 돌릴 수 있어요'}
+              label={
+                spinning
+                  ? '룰렛 돌리는 중'
+                  : result
+                    ? '룰렛 완료'
+                    : isOwner
+                      ? '룰렛 돌리기'
+                      : '방장 결과 대기 중'
+              }
               enabled={canRun}
               onTap={handleRunRoulette}
             />
