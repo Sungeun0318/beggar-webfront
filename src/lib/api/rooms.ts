@@ -24,6 +24,19 @@ type ApiResponse<T> = {
   message: string
 }
 
+function unwrapApiData<T>(response: ApiResponse<T> | T): T {
+  if (
+    response &&
+    typeof response === 'object' &&
+    'data' in response &&
+    ('success' in response || 'message' in response)
+  ) {
+    return (response as ApiResponse<T>).data
+  }
+
+  return response as T
+}
+
 /**
  * 내가 참여 중인 방 목록을 조회합니다.
  * (백엔드: GET /rooms/my)
@@ -201,8 +214,8 @@ export async function getRouletteResult(no: number): Promise<RouletteResult | nu
     return null
   }
 
-  const response = await client.get<ApiResponse<RouletteResult | null>>(`/rooms/${no}/roulette`)
-  return response.data ?? null
+  const response = await client.get<ApiResponse<RouletteResult | null> | RouletteResult | null>(`/rooms/${no}/roulette`)
+  return unwrapApiData<RouletteResult | null>(response) ?? null
 }
 
 export async function startBudgetInput(no: number): Promise<void> {
@@ -229,11 +242,12 @@ export async function startRoulette(no: number): Promise<RouletteResult> {
     }
   }
 
-  const response = await client.post<ApiResponse<RouletteResult>>(`/rooms/${no}/roulette`, {})
-  if (!response.data) {
+  const response = await client.post<ApiResponse<RouletteResult> | RouletteResult>(`/rooms/${no}/roulette`, {})
+  const data = unwrapApiData<RouletteResult>(response)
+  if (!data) {
     throw new Error('룰렛 결과를 받아오지 못했습니다.')
   }
-  return response.data
+  return data
 }
 
 /**
