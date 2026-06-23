@@ -196,6 +196,15 @@ export async function getRoomMembers(no: number): Promise<Member[]> {
   return response.data
 }
 
+export async function getRouletteResult(no: number): Promise<RouletteResult | null> {
+  if (MOCK.rooms) {
+    return null
+  }
+
+  const response = await client.get<ApiResponse<RouletteResult | null>>(`/rooms/${no}/roulette`)
+  return response.data ?? null
+}
+
 export async function startBudgetInput(no: number): Promise<void> {
   if (MOCK.rooms) {
     return
@@ -221,6 +230,9 @@ export async function startRoulette(no: number): Promise<RouletteResult> {
   }
 
   const response = await client.post<ApiResponse<RouletteResult>>(`/rooms/${no}/roulette`, {})
+  if (!response.data) {
+    throw new Error('룰렛 결과를 받아오지 못했습니다.')
+  }
   return response.data
 }
 
