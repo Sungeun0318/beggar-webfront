@@ -58,9 +58,8 @@ function Wheel({
         ),
       )
     : 0
+  const rotation = result ? 360 * 4 + 270 - (winnerIndex + 0.5) * (360 / slices) : 0
   const sliceAngle = 360 / slices
-  const winnerCenterAngle = (winnerIndex + 0.5) * sliceAngle
-  const rotation = result ? 360 * 5 - winnerCenterAngle : 0
   const labelRadius = slices <= 2 ? 74 : slices <= 4 ? 86 : 96
 
   return (
@@ -226,7 +225,7 @@ export function RouletteScreen() {
       const rouletteResult = await startRoulette(roomNo)
       window.setTimeout(() => {
         setResult(rouletteResult)
-        setMemberList(rouletteResult.allMembers?.length ? rouletteResult.allMembers : memberList)
+        setMemberList(rouletteResult.allMembers)
         setSpinning(false)
       }, 900)
     } catch (err: any) {
