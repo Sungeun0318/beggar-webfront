@@ -31,6 +31,11 @@ const segmentColors = [
   '#D99A36',
 ]
 
+function isWinningMember(member: Member, result: RouletteResult | null) {
+  if (!result) return false
+  return member.userNo === result.winnerUserNo || member.name === result.winnerNickname
+}
+
 function Wheel({
   members,
   spinning,
@@ -41,25 +46,20 @@ function Wheel({
   result: RouletteResult | null
 }) {
   const slices = Math.max(members.length, 1)
+  const sliceAngle = 360 / slices
   const background = members.length
     ? `conic-gradient(${members
         .map((_, index) => {
-          const start = (index / slices) * 360
-          const end = ((index + 1) / slices) * 360
+          const start = index * sliceAngle
+          const end = (index + 1) * sliceAngle
           return `${segmentColors[index % segmentColors.length]} ${start}deg ${end}deg`
         })
         .join(', ')})`
     : colors.border
   const winnerIndex = result
-    ? Math.max(
-        0,
-        members.findIndex(
-          member => member.userNo === result.winnerUserNo || member.name === result.winnerNickname,
-        ),
-      )
+    ? Math.max(0, members.findIndex(member => isWinningMember(member, result)))
     : 0
-  const rotation = result ? 360 * 4 + 270 - (winnerIndex + 0.5) * (360 / slices) : 0
-  const sliceAngle = 360 / slices
+  const rotation = result ? 360 * 4 - (winnerIndex + 0.5) * sliceAngle : 0
   const labelRadius = slices <= 2 ? 74 : slices <= 4 ? 86 : 96
 
   return (
@@ -99,8 +99,7 @@ function Wheel({
           const x = Math.sin(angleRad) * labelRadius
           const y = -Math.cos(angleRad) * labelRadius
           const label = member.mine ? '나' : member.name
-          const isWinner =
-            result && (member.userNo === result.winnerUserNo || member.name === result.winnerNickname)
+          const isWinner = isWinningMember(member, result)
 
           return (
             <div
@@ -314,7 +313,7 @@ export function RouletteScreen() {
                   ? '룰렛 결과가 확정됐어요'
                   : isOwner
                     ? '룰렛은 한 번만 돌릴 수 있어요'
-                    : '방장이 룰렛을 돌리면 결과를 확인할 수 있어요'}
+                    : '룰렛의 결과를 기다리고 있습니다.'}
             </p>
           </div>
 
@@ -374,7 +373,7 @@ export function RouletteScreen() {
                     ? '룰렛 완료'
                     : isOwner
                       ? '룰렛 돌리기'
-                      : '방장 결과 대기 중'
+                      : '룰렛의 결과를 기다리고 있습니다.'
               }
               enabled={canRun}
               onTap={handleRunRoulette}

@@ -20,13 +20,13 @@ import { PhoneFrame } from '../../components/PhoneFrame'
 import { SummaryRow } from '../../components/SummaryRow'
 import { getBudgetResult } from '../../lib/api/budget'
 import { getRecommendation } from '../../lib/api/recommendation'
-import { getRoom, closeRoom } from '../../lib/api/rooms'
+import { getRoom, closeRoom, getRouletteResult } from '../../lib/api/rooms'
 import { getRoomReceipts, getSplitGroups } from '../../lib/api/receipts'
 import { money } from '../../lib/format'
 import { room as mockRoom, budgetResult as mockBudgetResult } from '../../mocks'
 import { colors, radii } from '../../theme/tokens'
 import { softBox } from '../../components/ui/softBox'
-import type { BudgetResult, RecommendedPlace, Room, Receipt, SplitGroup } from '../../types'
+import type { BudgetResult, RecommendedPlace, Room, Receipt, RouletteResult, SplitGroup } from '../../types'
 
 const fallbackTags = ['한식', '양식', '일식', '중식', '기타 요식업']
 
@@ -93,20 +93,23 @@ export function ActiveRoomScreen() {
   const [courseRecommendationLoading, setCourseRecommendationLoading] = useState(false)
   const [initialRecommendationError, setInitialRecommendationError] = useState<string | null>(null)
   const [courseRecommendationError, setCourseRecommendationError] = useState<string | null>(null)
+  const [rouletteResult, setRouletteResult] = useState<RouletteResult | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [roomData, budgetData, receiptData, splitGroupData] = await Promise.all([
+        const [roomData, budgetData, receiptData, splitGroupData, rouletteData] = await Promise.all([
           getRoom(roomNo),
           getBudgetResult(roomNo).catch(() => null), // 예산이 아직 없을 수 있음
           getRoomReceipts(roomNo).catch(() => []),
           getSplitGroups(roomNo).catch(() => []),
+          getRouletteResult(roomNo).catch(() => null),
         ])
         setRoom(roomData)
         setBudget(budgetData)
         setReceiptList(receiptData)
         setSplitGroups(splitGroupData)
+        setRouletteResult(rouletteData)
         setSelectedTag(roomData.tags[0] || fallbackTags[0])
       } catch (error) {
         console.error('Failed to fetch room data:', error)
@@ -221,6 +224,7 @@ export function ActiveRoomScreen() {
       // 상태 업데이트를 위해 방 정보를 다시 불러옴
       const updatedRoom = await getRoom(roomNo)
       setRoom(updatedRoom)
+      setRouletteResult(null)
     } catch (error: any) {
       if (error.response?.data?.code === 'ROOM_ALREADY_ENDED') {
         alert('이미 종료된 방입니다.')
@@ -587,12 +591,22 @@ export function ActiveRoomScreen() {
           )}
           {displayRoom.status === 'ENDED' && (
             <div className="space-y-3">
+              {!isOwner && !rouletteResult && (
+                <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-white text-sm font-bold text-sub">
+                  룰렛의 결과를 기다리고 있습니다.
+                </div>
+              )}
               <button
                 type="button"
-                className="h-[52px] w-full rounded-compact bg-danger text-sm font-black text-white shadow-[0_8px_14px_rgba(217,115,76,0.22)]"
+                className={`h-[52px] w-full rounded-compact text-sm font-black shadow-[0_8px_14px_rgba(217,115,76,0.22)] ${
+                  !isOwner && !rouletteResult
+                    ? 'cursor-default bg-gray-100 text-gray-400 shadow-none'
+                    : 'bg-danger text-white'
+                }`}
                 onClick={() => navigate(`/room/${roomNo}/roulette`)}
+                disabled={!isOwner && !rouletteResult}
               >
-                거지룰렛 돌리기
+                {rouletteResult ? '룰렛 결과 확인하기!' : isOwner ? '거지룰렛 돌리기' : '룰렛 결과 확인하기!'}
               </button>
               <div className="flex h-[52px] w-full items-center justify-center rounded-compact border border-border bg-gray-100 text-sm font-bold text-gray-400">
                 종료된 방입니다
